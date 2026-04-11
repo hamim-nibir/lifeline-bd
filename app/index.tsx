@@ -24,28 +24,28 @@ export default function LandingScreen() {
           onPress={() => router.push("/(auth)/login")}
           className="bg-white px-5 py-2 rounded-full"
         >
-          <Text className="text-red-600 font-semibold text-sm">Login</Text>
+          <Text className="text-orange-600 font-semibold text-sm">Login</Text>
         </TouchableOpacity>
       </View>
 
       {/* Hero section */}
       <View
-        className="bg-red-600 items-center justify-center px-8"
-        style={{ height: height * 0.55 }}
+        className="bg-orange-600 items-center justify-center px-8"
+        style={{ height: height * 0.50 }}
       >
         <Text className="text-white text-6xl mb-4">🩸</Text>
         <Text className="text-white text-4xl font-bold text-center leading-tight">
-          Save Lives{"\n"}Donate Blood
+          Emergency Help
         </Text>
         <Text className="text-red-200 text-base text-center mt-4 leading-relaxed">
-          Connect with blood donors across{"\n"}Bangladesh instantly
+          Get instant help in critical situations.{"\n"} Our emergency services are available 24/7.
         </Text>
 
         <TouchableOpacity
           onPress={() => router.push("/(auth)/login")}
           className="bg-white mt-8 px-10 py-4 rounded-2xl"
         >
-          <Text className="text-red-600 font-bold text-base">
+          <Text className="text-orange-600 font-bold text-base">
             Get Started
           </Text>
         </TouchableOpacity>
@@ -54,16 +54,16 @@ export default function LandingScreen() {
       {/* Stats section */}
       <View className="flex-row mx-6 -mt-6">
         <View className="flex-1 bg-white rounded-2xl p-4 items-center mr-2 shadow-sm border border-gray-100">
-          <Text className="text-red-600 text-2xl font-bold">1.2k+</Text>
-          <Text className="text-gray-500 text-xs mt-1">Donors</Text>
+          <Text className="text-orange-600 text-2xl font-bold">5mins</Text>
+          <Text className="text-gray-500 text-xs mt-1">Avg. Response</Text>
         </View>
         <View className="flex-1 bg-white rounded-2xl p-4 items-center mx-2 shadow-sm border border-gray-100">
-          <Text className="text-red-600 text-2xl font-bold">340+</Text>
-          <Text className="text-gray-500 text-xs mt-1">Requests</Text>
+          <Text className="text-orange-600 text-2xl font-bold">24/7</Text>
+          <Text className="text-gray-500 text-xs mt-1">Coverage</Text>
         </View>
         <View className="flex-1 bg-white rounded-2xl p-4 items-center ml-2 shadow-sm border border-gray-100">
-          <Text className="text-red-600 text-2xl font-bold">8</Text>
-          <Text className="text-gray-500 text-xs mt-1">Blood Types</Text>
+          <Text className="text-orange-600 text-2xl font-bold">500+</Text>
+          <Text className="text-gray-500 text-xs mt-1">Active Volunteers</Text>
         </View>
       </View>
 
@@ -71,14 +71,24 @@ export default function LandingScreen() {
       <ScrollView className="mx-6 mt-6" showsVerticalScrollIndicator={false}>
         {[
           {
-            icon: "🔍",
-            title: "Find Donors Fast",
-            desc: "Search donors by blood type and location instantly",
+            icon: "🚑",
+            title: "Medical Emergency",
+            desc: "Get medical help faster",
           },
           {
-            icon: "🏥",
-            title: "Request Blood",
-            desc: "Post urgent requests and get responses quickly",
+            icon: "🔥",
+            title: "Fire Emergency",
+            desc: "Report a fire quickly",
+          },
+          {
+            icon: "👮",
+            title: "Police Help",
+            desc: "Contact the nearest police station",
+          },
+          {
+            icon: "🌩️",
+            title: "Natural Disaster",
+            desc: "Request rescue assistance",
           },
           {
             icon: "🔔",
@@ -103,7 +113,7 @@ export default function LandingScreen() {
         {/* Register CTA */}
         <TouchableOpacity
           onPress={() => router.push("/(auth)/login")}
-          className="bg-red-600 rounded-2xl py-4 items-center mt-2 mb-10"
+          className="bg-orange-600 rounded-2xl py-4 items-center mt-2 mb-10"
         >
           <Text className="text-white font-bold text-base">
             Create Free Account
