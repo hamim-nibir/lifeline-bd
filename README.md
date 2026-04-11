@@ -61,7 +61,7 @@ Follow these steps exactly to run the project locally.
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/lifeline-bd.git
+git clone https://github.com/hamim-nibir/lifeline-bd.git
 cd lifeline-bd
 ```
 
@@ -397,7 +397,7 @@ Before writing any code, coordinate with the team lead. Know exactly which scree
 ### Step 2 — Clone the repo (first time only)
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/lifeline-bd.git
+git clone https://github.com/hamim-nibir/lifeline-bd.git
 cd lifeline-bd
 npm install --legacy-peer-deps
 cp .env.example .env
