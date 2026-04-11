@@ -58,7 +58,7 @@ Follow these steps exactly to run the project locally.
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/lifeline-bd.git
+git clone https://github.com/hamim-nibir/lifeline-bd.git
 cd lifeline-bd
 ```
 
@@ -344,7 +344,7 @@ Before writing any code, coordinate with the team lead to get a task assigned. K
 ### Step 2 — Clone the repo (first time only)
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/lifeline-bd.git
+git clone https://github.com/hamim-nibir/lifeline-bd.git
 cd lifeline-bd
 npm install --legacy-peer-deps
 ```
@@ -443,7 +443,7 @@ git push
 
 ### Step 8 — Open a Pull Request on GitHub
 
-1. Go to the repository: `https://github.com/YOUR_USERNAME/lifeline-bd`
+1. Go to the repository: `https://github.com/hamim-nibir/lifeline-bd`
 2. You will see a yellow banner — **"feature/your-feature-name had recent pushes"**
 3. Click **Compare & pull request**
 4. Fill in the Pull Request details:
