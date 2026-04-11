@@ -2,7 +2,7 @@
 
 A Unified Emergency Response System for Bangladesh.
 
-Built with **Expo** · **TypeScript** · **NativeWind (Tailwind CSS)** · **Expo Router**
+Built with **Expo** · **TypeScript** · **NativeWind (Tailwind CSS)** · **Expo Router** · **Firebase**
 
 ---
 
@@ -11,11 +11,12 @@ Built with **Expo** · **TypeScript** · **NativeWind (Tailwind CSS)** · **Expo
 - [Tech Stack](#tech-stack)
 - [Prerequisites](#prerequisites)
 - [Getting Started](#getting-started)
+- [Firebase Setup](#firebase-setup)
 - [Project Structure](#project-structure)
 - [Where to Make Changes](#where-to-make-changes)
 - [Config Files — Do Not Touch](#config-files--do-not-touch)
 - [Environment Variables](#environment-variables)
-- [Firebase Setup](#firebase-setup)
+- [Authentication Flow](#authentication-flow)
 - [Running on Device](#running-on-device)
 - [Common Errors & Fixes](#common-errors--fixes)
 - [Contributing — Full Workflow Guide](#contributing--full-workflow-guide)
@@ -32,6 +33,8 @@ Built with **Expo** · **TypeScript** · **NativeWind (Tailwind CSS)** · **Expo
 | TypeScript | ~5.9.2 | Type safety |
 | NativeWind | ^2.0.11 | Tailwind CSS for React Native |
 | Tailwind CSS | ^3.3.2 | Utility-first styling |
+| Firebase | latest | Auth, Firestore database |
+| Zustand | latest | Global state management |
 
 ---
 
@@ -58,7 +61,7 @@ Follow these steps exactly to run the project locally.
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/hamim-nibir/lifeline-bd.git
+git clone https://github.com/YOUR_USERNAME/lifeline-bd.git
 cd lifeline-bd
 ```
 
@@ -70,16 +73,72 @@ cd lifeline-bd
 npm install --legacy-peer-deps
 ```
 
-### 3. Start the development server
+### 3. Set up environment variables
+
+```bash
+cp .env.example .env
+```
+
+Fill in your Firebase config values in `.env`. See the [Firebase Setup](#firebase-setup) section below.
+
+### 4. Start the development server
 
 ```bash
 npx expo start --clear
 ```
 
-### 4. Open on your device
+### 5. Open on your device
 
-- Scan the **QR code** shown in the terminal using the **Expo Go** app
-- Or press `a` to open on Android emulator, `i` for iOS simulator
+- Scan the **QR code** in the terminal using the **Expo Go** app
+- Or press `a` for Android emulator, `i` for iOS simulator
+
+---
+
+## 🔥 Firebase Setup
+
+Every collaborator needs to set up their `.env` file with the Firebase config. The Firebase project is shared — you do not create a new one. Get the config values from the team lead.
+
+### If you are the team lead — one-time setup
+
+1. Go to https://console.firebase.google.com
+2. Click **Add project** → name it `lifeline-bd` → Continue
+3. Disable Google Analytics → **Create project**
+4. Click the **Web icon** (`</>`) → name it `lifeline-bd` → **Register app**
+5. Copy the config object shown on screen
+6. Go to **Authentication** → **Get started** → **Email/Password** → Enable → **Save**
+7. Go to **Firestore Database** → **Create database** → **Start in test mode** → choose a region → **Enable**
+8. Share the config values with your team (via a secure channel, not GitHub)
+
+### Setting up your `.env` file
+
+Create a `.env` file in the project root and fill in the values:
+
+```
+EXPO_PUBLIC_FIREBASE_API_KEY=your_api_key_here
+EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+EXPO_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
+EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
+EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+EXPO_PUBLIC_FIREBASE_APP_ID=your_app_id
+```
+
+> All Expo environment variables must be prefixed with `EXPO_PUBLIC_` to be accessible in the app.
+> Never commit your `.env` file — it is already in `.gitignore`.
+
+### Firestore data structure
+
+```
+users/                        ← collection
+  {uid}/                      ← document per user
+    uid: string
+    name: string
+    email: string
+    bloodType: string | null
+    phone: string | null
+    location: string | null
+    isDonor: boolean
+    createdAt: timestamp
+```
 
 ---
 
@@ -89,61 +148,58 @@ npx expo start --clear
 lifeline-bd/
 │
 ├── app/                          # All screens & navigation (Expo Router)
-│   ├── (tabs)/                   # Tab navigator group
-│   │   ├── _layout.tsx           # Tab bar configuration
-│   │   ├── index.tsx             # Home tab screen
-│   │   ├── search.tsx            # Search donors screen
-│   │   ├── request.tsx           # Blood request screen
-│   │   ├── notifications.tsx     # Notifications screen
-│   │   └── profile.tsx           # User profile screen
-│   ├── (auth)/                   # Auth screens (no tab bar)
-│   │   ├── login.tsx             # Login screen
-│   │   └── register.tsx          # Registration screen
-│   ├── request/
-│   │   └── [id].tsx              # Dynamic blood request detail screen
-│   └── _layout.tsx               # Root layout — imports global.css
+│   ├── _layout.tsx               # Root layout — auth guard & routing
+│   ├── (auth)/                   # Auth screens (no bottom navbar)
+│   │   ├── _layout.tsx           # Auth stack layout
+│   │   └── login.tsx             # Animated login + register screen
+│   └── (tabs)/                   # Authenticated screens (with bottom navbar)
+│       ├── _layout.tsx           # Tab bar configuration
+│       ├── index.tsx             # Home screen
+│       ├── search.tsx            # Search donors
+│       ├── request.tsx           # Blood request
+│       ├── notifications.tsx     # Notifications
+│       └── profile.tsx           # User profile + sign out
 │
 ├── components/
-│   ├── ui/                       # Small reusable UI pieces
-│   │   ├── Button.tsx            # Custom button component
-│   │   ├── Card.tsx              # Card container component
-│   │   └── Badge.tsx             # Blood type / status badge
+│   ├── ui/                       # Reusable UI components
+│   │   ├── Button.tsx
+│   │   ├── Card.tsx
+│   │   └── Badge.tsx
 │   └── layout/
-│       └── ScreenWrapper.tsx     # Safe area screen wrapper
+│       └── ScreenWrapper.tsx
 │
-├── hooks/                        # Custom React hooks
-│   └── useAuth.ts                # Authentication hook
+├── hooks/
+│   └── useAuth.ts                # Auth state hook
 │
-├── services/                     # External API & Firebase logic
+├── services/                     # Firebase logic
 │   ├── firebase.ts               # Firebase app initialization
-│   ├── auth.ts                   # Auth service functions
-│   └── firestore.ts              # Firestore database functions
+│   ├── auth.ts                   # register, login, logout, auth listener
+│   └── firestore.ts              # Firestore read/write functions
 │
-├── store/                        # Global state management
-│   └── authStore.ts              # Auth state (Zustand or Context)
+├── store/
+│   └── authStore.ts              # Global auth state (Zustand)
 │
-├── constants/                    # App-wide constant values
-│   ├── colors.ts                 # Color palette
-│   └── config.ts                 # App config values
+├── constants/
+│   ├── colors.ts
+│   └── config.ts
 │
-├── types/                        # TypeScript type definitions
-│   └── index.ts                  # All shared interfaces & types
+├── types/
+│   └── index.ts                  # UserProfile, AuthFormData interfaces
 │
-├── assets/                       # Images, fonts, icons
+├── assets/
 │
-├── .env                          # Local env variables (NOT committed)
-├── .env.example                  # Example env file (committed)
+├── .env                          # Your local secrets — NOT committed
+├── .env.example                  # Template — committed, no real values
 │
-# ── Config files (do not modify unless you know what you're doing) ──
-├── app.json                      # Expo app configuration
-├── babel.config.js               # Babel transpiler config
-├── metro.config.js               # Metro bundler config
-├── tailwind.config.js            # Tailwind CSS config
-├── global.css                    # Tailwind directives entry point
-├── nativewind-env.d.ts           # NativeWind TypeScript types
-├── tsconfig.json                 # TypeScript compiler config
-├── .npmrc                        # npm config (legacy-peer-deps=true)
-└── package.json                  # Dependencies & scripts
+├── app.json
+├── babel.config.js
+├── metro.config.js
+├── tailwind.config.js
+├── global.css
+├── nativewind-env.d.ts
+├── tsconfig.json
+├── .npmrc
+└── package.json
 ```
 
 ---
@@ -151,16 +207,14 @@ lifeline-bd/
 ## ✏️ Where to Make Changes
 
 ### Adding a new screen
-Create a new `.tsx` file inside the `app/` folder. Expo Router automatically turns it into a route.
+Create a `.tsx` file inside `app/`. Expo Router automatically makes it a route.
 
 ```
-app/donors.tsx         → navigates to /donors
-app/request/[id].tsx   → navigates to /request/123
+app/(tabs)/donors.tsx     → accessible after login at /donors tab
+app/donor/[id].tsx        → dynamic route at /donor/123
 ```
 
 ### Adding a new component
-Put reusable UI pieces in `components/ui/` and layout wrappers in `components/layout/`.
-
 ```tsx
 // components/ui/BloodTypeCard.tsx
 import { View, Text } from "react-native";
@@ -174,18 +228,20 @@ export default function BloodTypeCard({ type }: { type: string }) {
 }
 ```
 
-### Adding styling
-Use **Tailwind class names** directly on components via `className`. No separate stylesheet needed.
+### Adding a Firestore function
+Add it to `services/firestore.ts`:
+```ts
+import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { db } from "./firebase";
 
-```tsx
-<View className="flex-1 bg-gray-50 px-4 py-6">
-  <Text className="text-red-600 text-2xl font-bold">Hello</Text>
-</View>
+export const getUserProfile = async (uid: string) => {
+  const snap = await getDoc(doc(db, "users", uid));
+  return snap.exists() ? snap.data() : null;
+};
 ```
 
-### Adding a new type / interface
-Add it to `types/index.ts`:
-
+### Adding a new type
+Add to `types/index.ts`:
 ```ts
 export interface BloodRequest {
   id: string;
@@ -197,71 +253,65 @@ export interface BloodRequest {
 }
 ```
 
-### Adding a new constant
-Add to `constants/colors.ts` or `constants/config.ts`:
+### Using global auth state
+```tsx
+import { useAuthStore } from "../store/authStore";
 
-```ts
-// constants/colors.ts
-export const Colors = {
-  primary: "#DC2626",   // red-600
-  secondary: "#FEE2E2", // red-100
-};
+const { user } = useAuthStore();
+console.log(user?.displayName); // logged in user's name
 ```
 
 ---
 
 ## 🔒 Config Files — Do Not Touch
 
-These files are carefully configured. **Do not modify them** unless you understand what you're doing — wrong changes will break the entire build.
-
 | File | Why it's sensitive |
 |------|--------------------|
-| `babel.config.js` | Configures NativeWind v2 babel transform. Wrong preset order breaks bundling. |
-| `metro.config.js` | Metro bundler setup. Changing this breaks the dev server. |
-| `tailwind.config.js` | Must not include `nativewind/preset` (that's v4 only — we use v2). |
-| `global.css` | Tailwind entry point imported by root layout. Must stay in project root. |
-| `nativewind-env.d.ts` | Gives TypeScript awareness of `className` prop and CSS imports. |
-| `tsconfig.json` | Must include `nativewind-env.d.ts` in the `include` array. |
-| `.npmrc` | Contains `legacy-peer-deps=true`. Removing this will break `npm install`. |
-| `app.json` | Contains `scheme`, `plugins: ["expo-router"]`, and `web.bundler: "metro"` — all required. |
+| `babel.config.js` | NativeWind v2 babel transform — wrong order breaks bundling |
+| `metro.config.js` | Metro bundler setup — changing this breaks the dev server |
+| `tailwind.config.js` | Must not include `nativewind/preset` — we use v2 not v4 |
+| `global.css` | Tailwind entry point — must stay in root, imported first in `_layout.tsx` |
+| `nativewind-env.d.ts` | Gives TypeScript awareness of `className` and CSS imports |
+| `tsconfig.json` | Must include `nativewind-env.d.ts` in the `include` array |
+| `.npmrc` | Contains `legacy-peer-deps=true` — removing this breaks `npm install` |
+| `app.json` | Contains `scheme`, `plugins: ["expo-router"]`, `web.bundler: "metro"` — all required |
+| `services/firebase.ts` | Firebase initialization — only one instance allowed via `getApps()` check |
 
 ---
 
 ## 🔑 Environment Variables
 
-The project uses `.env` for secrets (API keys, Firebase config). This file is **not committed** to git.
+| Variable | Description |
+|----------|-------------|
+| `EXPO_PUBLIC_FIREBASE_API_KEY` | Firebase project API key |
+| `EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN` | Firebase auth domain |
+| `EXPO_PUBLIC_FIREBASE_PROJECT_ID` | Firebase project ID |
+| `EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET` | Firebase storage bucket |
+| `EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | Firebase messaging sender ID |
+| `EXPO_PUBLIC_FIREBASE_APP_ID` | Firebase app ID |
 
-### Setup
-
-1. Copy the example file:
-```bash
-cp .env.example .env
-```
-
-2. Fill in your values in `.env`:
-```
-EXPO_PUBLIC_FIREBASE_API_KEY=your_key_here
-EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
-EXPO_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
-```
-
-> In Expo, environment variables must be prefixed with `EXPO_PUBLIC_` to be accessible in the app.
+Get these values from the team lead. Never commit your `.env` file.
 
 ---
 
-## 🔥 Firebase Setup
+## 🔐 Authentication Flow
 
-Firebase is not yet integrated but the folder structure is ready. When you're ready:
-
-1. Go to https://console.firebase.google.com
-2. Create a new project
-3. Add an Android/iOS app and download the config
-4. Install Firebase:
-```bash
-npm install firebase --legacy-peer-deps
 ```
-5. Add your Firebase config to `.env` (see above)
-6. Initialize in `services/firebase.ts`
+App opens
+    ↓
+Root _layout.tsx checks auth state (Firebase onAuthStateChanged)
+    ↓
+Not logged in → redirect to /(auth)/login
+Logged in     → redirect to /(tabs)
+    ↓
+login.tsx — animated tab switcher between Sign In and Register
+    ↓
+On success → root layout detects user → auto redirects to /(tabs)
+    ↓
+Profile screen → Sign Out → root layout detects null user → redirects to login
+```
+
+The bottom navbar is only visible inside `(tabs)/` — unauthenticated users never see it.
 
 ---
 
@@ -270,7 +320,7 @@ npm install firebase --legacy-peer-deps
 ### Physical device (recommended)
 1. Install **Expo Go** on your phone
 2. Run `npx expo start --clear`
-3. Scan the QR code — make sure your phone and PC are on the **same WiFi network**
+3. Scan the QR code — phone and PC must be on the **same WiFi network**
 
 ### Android emulator
 1. Install Android Studio and set up an AVD
@@ -296,25 +346,28 @@ npx expo start --clear
 ```
 
 ### `Cannot find module 'nativewind/preset'`
-Your `tailwind.config.js` has a NativeWind v4 preset. Remove the `presets` line — we use v2:
+Remove the `presets` line from `tailwind.config.js` — we use NativeWind v2:
 ```js
 // ❌ Remove this line
 presets: [require("nativewind/preset")],
 ```
 
-### `className` not working / no styles applied
-Make sure `app/_layout.tsx` imports `global.css` as the **very first line**:
+### `className` not working
+Make sure `app/_layout.tsx` imports `global.css` as the very first line:
 ```tsx
 import "../global.css"; // must be first
 ```
 
-### Metro bundler cache issues
-```bash
-npx expo start --clear
-```
+### Firebase: `auth/invalid-credential`
+Your `.env` values are wrong or missing. Double-check them against the Firebase console.
 
-### Styles not updating after changes
-Stop the server, then:
+### Firebase: `Cannot read property 'app' of undefined`
+Your `.env` file is missing or the variable names are wrong. Make sure all keys start with `EXPO_PUBLIC_`.
+
+### App stuck on blank screen after login
+Run `npx expo start --clear` — Metro cache needs clearing after auth state changes.
+
+### Metro bundler cache issues
 ```bash
 npx expo start --clear
 ```
@@ -337,30 +390,30 @@ This project uses a **3-branch strategy** to keep the codebase safe and stable.
 
 ### Step 1 — Get assigned a task
 
-Before writing any code, coordinate with the team lead to get a task assigned. Know exactly which screen, component, or feature you are responsible for. This prevents two people working on the same files at the same time.
+Before writing any code, coordinate with the team lead. Know exactly which screen, component, or feature you own. This prevents two people editing the same file simultaneously.
 
 ---
 
 ### Step 2 — Clone the repo (first time only)
 
 ```bash
-git clone https://github.com/hamim-nibir/lifeline-bd.git
+git clone https://github.com/YOUR_USERNAME/lifeline-bd.git
 cd lifeline-bd
 npm install --legacy-peer-deps
+cp .env.example .env
+# fill in .env with Firebase config values from team lead
 ```
 
 ---
 
 ### Step 3 — Always start from the latest `develop`
 
-Do this **every single time** before starting new work:
-
 ```bash
 git checkout develop
 git pull origin develop
 ```
 
-This ensures you have your teammates' latest merged code and avoids conflicts later.
+Do this every single time before starting new work.
 
 ---
 
@@ -370,123 +423,76 @@ This ensures you have your teammates' latest merged code and avoids conflicts la
 git checkout -b feature/your-feature-name
 ```
 
-**Branch naming conventions:**
-
 | What you're building | Branch name |
 |----------------------|-------------|
 | Login screen | `feature/login-screen` |
 | Donor search | `feature/donor-search` |
 | Profile page | `feature/profile-screen` |
-| Blood request form | `feature/blood-request-form` |
 | Bug fix | `fix/search-crash` |
-| UI update | `ui/home-screen-redesign` |
+| UI update | `ui/home-redesign` |
 
 ---
 
 ### Step 5 — Make your changes
 
-Work only inside files relevant to your task:
-
-- New screens → `app/`
-- New components → `components/ui/` or `components/layout/`
-- New hooks → `hooks/`
-- Shared types → `types/index.ts`
-- API / Firebase logic → `services/`
-
-> ❌ Do not touch `babel.config.js`, `metro.config.js`, `tailwind.config.js`, `global.css`, `app.json`, or any other config file. If you think a config change is needed, discuss with the team lead first.
+Work only in files relevant to your task. Never touch config files.
 
 ---
 
-### Step 6 — Commit your changes regularly
-
-Commit small and often. Do not wait until the whole feature is done.
+### Step 6 — Commit regularly
 
 ```bash
 git add .
-git commit -m "feat: add login screen UI layout"
+git commit -m "feat: add donor search screen"
 ```
-
-**Commit message format — always use one of these prefixes:**
 
 | Prefix | When to use |
 |--------|-------------|
-| `feat:` | Adding new functionality |
-| `fix:` | Fixing a bug |
-| `ui:` | Visual or design changes only |
-| `refactor:` | Code restructure, no behaviour change |
-| `chore:` | Dependency updates, minor config tweaks |
-| `docs:` | README or comment updates |
-
-**Examples:**
-```
-feat: add donor search screen
-fix: resolve tab bar icon not highlighting on Android
-ui: update blood request card design
-refactor: move auth logic to services/auth.ts
-```
+| `feat:` | New functionality |
+| `fix:` | Bug fix |
+| `ui:` | Visual changes only |
+| `refactor:` | Code restructure |
+| `chore:` | Dependency or config updates |
+| `docs:` | README or comments |
 
 ---
 
-### Step 7 — Push your branch to GitHub
+### Step 7 — Push your branch
 
 ```bash
 git push -u origin feature/your-feature-name
-```
-
-For subsequent pushes on the same branch:
-
-```bash
-git push
 ```
 
 ---
 
 ### Step 8 — Open a Pull Request on GitHub
 
-1. Go to the repository: `https://github.com/hamim-nibir/lifeline-bd`
-2. You will see a yellow banner — **"feature/your-feature-name had recent pushes"**
-3. Click **Compare & pull request**
-4. Fill in the Pull Request details:
+1. Go to the repo on GitHub
+2. Click **Compare & pull request** on the banner
+3. Set base branch to **`develop`** — not `main`
+4. Fill in the title and description:
 
-**Set the base branch to `develop` — not `main`.**
-
-**Title** — short and descriptive:
-```
-feat: add donor search screen
-```
-
-**Description** — use this template:
 ```
 ## What this PR does
-- Adds the donor search screen at app/(tabs)/search.tsx
-- Users can filter donors by blood type and location
-- Added SearchBar component to components/ui/SearchBar.tsx
+- Brief description of the feature
 
 ## How to test
-1. Run: npx expo start --clear
-2. Tap the Search tab in the bottom navbar
-3. Try filtering by blood type A+
+1. Steps to test the feature
 
 ## Screenshots
-(attach a screenshot of the screen)
+(attach a screenshot)
 ```
 
-5. Click **Create pull request**
-6. Request a review from the team lead or a teammate
+5. Request a review from the team lead
 
 ---
 
 ### Step 9 — Respond to review comments
 
-If your reviewer requests changes:
-
-- Make the fixes on the **same branch** (do not create a new branch)
-- Push again — the PR updates automatically
-
 ```bash
-# make the requested changes, then:
+# make changes, then:
 git add .
-git commit -m "fix: address PR review comments"
+git commit -m "fix: address review comments"
 git push
 ```
 
@@ -494,60 +500,39 @@ git push
 
 ### Step 10 — After your PR is merged
 
-Once approved and merged into `develop`, clean up:
-
 ```bash
-# Switch back to develop
 git checkout develop
-
-# Pull the latest — your merged work is now here
 git pull origin develop
-
-# Delete your feature branch locally
 git branch -d feature/your-feature-name
 ```
 
-You are ready to start the next task from Step 3.
-
 ---
 
-### 🔁 Quick reference — the full cycle
+### 🔁 Quick reference
 
 ```bash
-# 1. Update develop
-git checkout develop
-git pull origin develop
-
-# 2. Create your branch
+git checkout develop && git pull origin develop
 git checkout -b feature/your-feature-name
-
-# 3. Do your work and commit often
-git add .
-git commit -m "feat: describe what you built"
-
-# 4. Push your branch
+# do your work
+git add . && git commit -m "feat: what you built"
 git push -u origin feature/your-feature-name
-
-# 5. Open a Pull Request on GitHub
-#    → base: develop  ←  compare: feature/your-feature-name
-
-# 6. After PR is merged, clean up
-git checkout develop
-git pull origin develop
+# open PR on GitHub → base: develop
+# after merge:
+git checkout develop && git pull origin develop
 git branch -d feature/your-feature-name
 ```
 
 ---
 
-### 🚨 Golden rules — never forget these
+### 🚨 Golden rules
 
-1. **Never push directly to `main` or `develop`**
-2. **Always `git pull origin develop` before creating a new branch**
-3. **One feature = one branch = one Pull Request**
-4. **Only touch files related to your assigned task**
-5. **Never modify config files without discussing with the team lead**
-6. **Use the `feat/fix/ui/refactor` prefix in every commit message**
-7. **Delete your branch locally after it is merged**
+1. Never push directly to `main` or `develop`
+2. Always `git pull origin develop` before creating a branch
+3. One feature = one branch = one Pull Request
+4. Only touch files related to your assigned task
+5. Never modify config files without discussing with the team lead
+6. Use `feat/fix/ui/refactor` prefix in every commit message
+7. Delete your branch locally after it is merged
 
 ---
 
