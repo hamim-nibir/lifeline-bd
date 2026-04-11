@@ -1,5 +1,6 @@
 import { Tabs } from "expo-router";
-import { View, Text } from "react-native";
+import { View, Text, TouchableOpacity } from "react-native";
+import { logoutUser } from "../../services/auth";
 
 type TabIconProps = {
   focused: boolean;
@@ -10,9 +11,7 @@ type TabIconProps = {
 function TabIcon({ focused, icon, label }: TabIconProps) {
   return (
     <View className="items-center justify-center gap-1 mt-2">
-      <Text
-        className={`text-2xl ${focused ? "opacity-100" : "opacity-40"}`}
-      >
+      <Text className={`text-2xl ${focused ? "opacity-100" : "opacity-40"}`}>
         {icon}
       </Text>
       <Text
