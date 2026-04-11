@@ -1,6 +1,6 @@
 # 🩸 Lifeline BD
 
-A React Native mobile application connecting blood donors with patients in Bangladesh.
+A Unified Emergency Response System for Bangladesh.
 
 Built with **Expo** · **TypeScript** · **NativeWind (Tailwind CSS)** · **Expo Router**
 
@@ -18,7 +18,7 @@ Built with **Expo** · **TypeScript** · **NativeWind (Tailwind CSS)** · **Expo
 - [Firebase Setup](#firebase-setup)
 - [Running on Device](#running-on-device)
 - [Common Errors & Fixes](#common-errors--fixes)
-- [Contributing](#contributing)
+- [Contributing — Full Workflow Guide](#contributing--full-workflow-guide)
 
 ---
 
@@ -93,6 +93,8 @@ lifeline-bd/
 │   │   ├── _layout.tsx           # Tab bar configuration
 │   │   ├── index.tsx             # Home tab screen
 │   │   ├── search.tsx            # Search donors screen
+│   │   ├── request.tsx           # Blood request screen
+│   │   ├── notifications.tsx     # Notifications screen
 │   │   └── profile.tsx           # User profile screen
 │   ├── (auth)/                   # Auth screens (no tab bar)
 │   │   ├── login.tsx             # Login screen
@@ -319,27 +321,233 @@ npx expo start --clear
 
 ---
 
-## 🤝 Contributing
+## 🤝 Contributing — Full Workflow Guide
 
-1. Create a new branch for your feature:
+This project uses a **3-branch strategy** to keep the codebase safe and stable.
+
+| Branch | Purpose | Who pushes here |
+|--------|---------|-----------------|
+| `main` | Production-ready releases only | Nobody directly — only merged from `develop` |
+| `develop` | Integration branch — all features land here | Nobody directly — only merged from feature branches |
+| `feature/xxx` | Your personal working branch for one task | You |
+
+> ⚠️ **Never push directly to `main` or `develop`.** Always work on a feature branch and open a Pull Request.
+
+---
+
+### Step 1 — Get assigned a task
+
+Before writing any code, coordinate with the team lead to get a task assigned. Know exactly which screen, component, or feature you are responsible for. This prevents two people working on the same files at the same time.
+
+---
+
+### Step 2 — Clone the repo (first time only)
+
+```bash
+git clone https://github.com/YOUR_USERNAME/lifeline-bd.git
+cd lifeline-bd
+npm install --legacy-peer-deps
+```
+
+---
+
+### Step 3 — Always start from the latest `develop`
+
+Do this **every single time** before starting new work:
+
+```bash
+git checkout develop
+git pull origin develop
+```
+
+This ensures you have your teammates' latest merged code and avoids conflicts later.
+
+---
+
+### Step 4 — Create your feature branch
+
 ```bash
 git checkout -b feature/your-feature-name
 ```
 
-2. Make your changes inside `app/`, `components/`, `hooks/`, `services/`, `store/`, or `types/`
+**Branch naming conventions:**
 
-3. **Do not modify** config files unless discussed with the team
+| What you're building | Branch name |
+|----------------------|-------------|
+| Login screen | `feature/login-screen` |
+| Donor search | `feature/donor-search` |
+| Profile page | `feature/profile-screen` |
+| Blood request form | `feature/blood-request-form` |
+| Bug fix | `fix/search-crash` |
+| UI update | `ui/home-screen-redesign` |
 
-4. Commit your changes:
+---
+
+### Step 5 — Make your changes
+
+Work only inside files relevant to your task:
+
+- New screens → `app/`
+- New components → `components/ui/` or `components/layout/`
+- New hooks → `hooks/`
+- Shared types → `types/index.ts`
+- API / Firebase logic → `services/`
+
+> ❌ Do not touch `babel.config.js`, `metro.config.js`, `tailwind.config.js`, `global.css`, `app.json`, or any other config file. If you think a config change is needed, discuss with the team lead first.
+
+---
+
+### Step 6 — Commit your changes regularly
+
+Commit small and often. Do not wait until the whole feature is done.
+
 ```bash
 git add .
-git commit -m "feat: add donor search screen"
+git commit -m "feat: add login screen UI layout"
 ```
 
-5. Push and open a Pull Request:
-```bash
-git push origin feature/your-feature-name
+**Commit message format — always use one of these prefixes:**
+
+| Prefix | When to use |
+|--------|-------------|
+| `feat:` | Adding new functionality |
+| `fix:` | Fixing a bug |
+| `ui:` | Visual or design changes only |
+| `refactor:` | Code restructure, no behaviour change |
+| `chore:` | Dependency updates, minor config tweaks |
+| `docs:` | README or comment updates |
+
+**Examples:**
 ```
+feat: add donor search screen
+fix: resolve tab bar icon not highlighting on Android
+ui: update blood request card design
+refactor: move auth logic to services/auth.ts
+```
+
+---
+
+### Step 7 — Push your branch to GitHub
+
+```bash
+git push -u origin feature/your-feature-name
+```
+
+For subsequent pushes on the same branch:
+
+```bash
+git push
+```
+
+---
+
+### Step 8 — Open a Pull Request on GitHub
+
+1. Go to the repository: `https://github.com/YOUR_USERNAME/lifeline-bd`
+2. You will see a yellow banner — **"feature/your-feature-name had recent pushes"**
+3. Click **Compare & pull request**
+4. Fill in the Pull Request details:
+
+**Set the base branch to `develop` — not `main`.**
+
+**Title** — short and descriptive:
+```
+feat: add donor search screen
+```
+
+**Description** — use this template:
+```
+## What this PR does
+- Adds the donor search screen at app/(tabs)/search.tsx
+- Users can filter donors by blood type and location
+- Added SearchBar component to components/ui/SearchBar.tsx
+
+## How to test
+1. Run: npx expo start --clear
+2. Tap the Search tab in the bottom navbar
+3. Try filtering by blood type A+
+
+## Screenshots
+(attach a screenshot of the screen)
+```
+
+5. Click **Create pull request**
+6. Request a review from the team lead or a teammate
+
+---
+
+### Step 9 — Respond to review comments
+
+If your reviewer requests changes:
+
+- Make the fixes on the **same branch** (do not create a new branch)
+- Push again — the PR updates automatically
+
+```bash
+# make the requested changes, then:
+git add .
+git commit -m "fix: address PR review comments"
+git push
+```
+
+---
+
+### Step 10 — After your PR is merged
+
+Once approved and merged into `develop`, clean up:
+
+```bash
+# Switch back to develop
+git checkout develop
+
+# Pull the latest — your merged work is now here
+git pull origin develop
+
+# Delete your feature branch locally
+git branch -d feature/your-feature-name
+```
+
+You are ready to start the next task from Step 3.
+
+---
+
+### 🔁 Quick reference — the full cycle
+
+```bash
+# 1. Update develop
+git checkout develop
+git pull origin develop
+
+# 2. Create your branch
+git checkout -b feature/your-feature-name
+
+# 3. Do your work and commit often
+git add .
+git commit -m "feat: describe what you built"
+
+# 4. Push your branch
+git push -u origin feature/your-feature-name
+
+# 5. Open a Pull Request on GitHub
+#    → base: develop  ←  compare: feature/your-feature-name
+
+# 6. After PR is merged, clean up
+git checkout develop
+git pull origin develop
+git branch -d feature/your-feature-name
+```
+
+---
+
+### 🚨 Golden rules — never forget these
+
+1. **Never push directly to `main` or `develop`**
+2. **Always `git pull origin develop` before creating a new branch**
+3. **One feature = one branch = one Pull Request**
+4. **Only touch files related to your assigned task**
+5. **Never modify config files without discussing with the team lead**
+6. **Use the `feat/fix/ui/refactor` prefix in every commit message**
+7. **Delete your branch locally after it is merged**
 
 ---
 
