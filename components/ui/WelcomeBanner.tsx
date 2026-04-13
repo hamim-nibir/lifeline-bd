@@ -12,7 +12,7 @@ const ACCOUNT_LABELS: Record<AccountType, string> = {
 const ACCOUNT_COLORS: Record<AccountType, string> = {
   operator: "bg-purple-600",
   volunteer: "bg-teal-600",
-  citizen: "bg-red-600",
+  citizen: "bg-green-600",
 };
 
 export default function WelcomeBanner() {

@@ -17,7 +17,7 @@ const DASHBOARDS = {
     features: ["Active requests", "Donor assistance", "Event schedule", "My contributions"],
   },
   citizen: {
-    color: "bg-red-600",
+    color: "bg-orange-600",
     emoji: "🩸",
     title: "Citizen Dashboard",
     subtitle: "Donate or request blood",
