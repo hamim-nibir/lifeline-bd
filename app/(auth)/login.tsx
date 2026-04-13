@@ -94,7 +94,7 @@ export default function AuthScreen() {
         keyboardShouldPersistTaps="handled"
       >
         {/* Header */}
-        <View className="bg-red-600 px-6 pt-16 pb-10 items-center">
+        <View className="bg-orange-600 px-6 pt-16 pb-10 items-center">
           <Text className="text-white text-4xl font-bold">🩸 Lifeline BD</Text>
           <Text className="text-red-200 text-sm mt-2 text-center">
             Connecting donors, saving lives
@@ -107,7 +107,7 @@ export default function AuthScreen() {
             onPress={() => switchTab(true)}
             className={`flex-1 py-3 rounded-xl items-center ${isLogin ? "bg-white shadow-sm" : ""}`}
           >
-            <Text className={`font-semibold text-sm ${isLogin ? "text-red-600" : "text-gray-400"}`}>
+            <Text className={`font-semibold text-sm ${isLogin ? "text-orange-600" : "text-gray-400"}`}>
               Sign In
             </Text>
           </TouchableOpacity>
@@ -115,7 +115,7 @@ export default function AuthScreen() {
             onPress={() => switchTab(false)}
             className={`flex-1 py-3 rounded-xl items-center ${!isLogin ? "bg-white shadow-sm" : ""}`}
           >
-            <Text className={`font-semibold text-sm ${!isLogin ? "text-red-600" : "text-gray-400"}`}>
+            <Text className={`font-semibold text-sm ${!isLogin ? "text-orange-600" : "text-gray-400"}`}>
               Register
             </Text>
           </TouchableOpacity>
@@ -210,18 +210,18 @@ export default function AuthScreen() {
                     <View
                       className={`w-5 h-5 rounded-full border-2 mr-3 items-center justify-center ${
                         accountType === type.value
-                          ? "border-red-600"
+                          ? "border-orange-600"
                           : "border-gray-300"
                       }`}
                     >
                       {accountType === type.value && (
-                        <View className="w-2.5 h-2.5 rounded-full bg-red-600" />
+                        <View className="w-2.5 h-2.5 rounded-full bg-orange-600" />
                       )}
                     </View>
                     <View className="flex-1">
                       <Text
                         className={`font-semibold text-sm ${
-                          accountType === type.value ? "text-red-600" : "text-gray-700"
+                          accountType === type.value ? "text-orange-600" : "text-gray-700"
                         }`}
                       >
                         {type.label}
@@ -236,14 +236,14 @@ export default function AuthScreen() {
 
           {error !== "" && (
             <View className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-4">
-              <Text className="text-red-600 text-sm">{error}</Text>
+              <Text className="text-orange-600 text-sm">{error}</Text>
             </View>
           )}
 
           <TouchableOpacity
             onPress={handleSubmit}
             disabled={loading}
-            className="bg-red-600 rounded-xl py-4 items-center mt-2"
+            className="bg-orange-600 rounded-xl py-4 items-center mt-2"
           >
             {loading ? (
               <ActivityIndicator color="#ffffff" />
@@ -259,7 +259,7 @@ export default function AuthScreen() {
               {isLogin ? "Don't have an account? " : "Already have an account? "}
             </Text>
             <TouchableOpacity onPress={() => switchTab(!isLogin)}>
-              <Text className="text-red-600 text-sm font-semibold">
+              <Text className="text-orange-600 text-sm font-semibold">
                 {isLogin ? "Register" : "Sign In"}
               </Text>
             </TouchableOpacity>
