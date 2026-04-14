@@ -13,6 +13,10 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Your location is needed for Women Safety Panic Mode.",
+        "NSLocationAlwaysUsageDescription": "Your location is needed for Women Safety Panic Mode."
+      },
       "supportsTablet": true
     },
     "android": {
@@ -20,13 +24,31 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "CALL_PHONE"
+      ],
       "predictiveBackGestureEnabled": false
     },
     "web": {
       "bundler": "metro"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow Lifeline BD to use your location for Women Safety feature."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow Lifeline BD to use your location."
+        }
+      ]
     ]
   }
 }

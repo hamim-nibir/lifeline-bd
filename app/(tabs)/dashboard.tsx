@@ -25,7 +25,7 @@ const CITIZEN_FEATURES: Feature[] = [
     icon: "🔔",
     name: "Women Safety Panic Mode",
     desc: "Urgent needs",
-    route: "/alerts",
+    route: "/(feat)/women-safety",
     color: "#fff7ed",
   },
   {
@@ -92,12 +92,11 @@ export default function CitizenDashboard() {
 
   const handleLogout = async () => {
     await logoutUser();
-    router.replace("/");
+    router.replace("/login");
   };
 
   const handleFeaturePress = (route: string) => {
-    // placeholder — will navigate when pages are built
-    console.log("Navigate to:", route);
+    router.push(route as any);
   };
 
   return (

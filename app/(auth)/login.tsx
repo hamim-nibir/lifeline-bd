@@ -13,6 +13,7 @@ import {
 import { useRef, useState } from "react";
 import { loginUser, registerUser } from "../../services/auth";
 import { AccountType } from "../../types";
+import { useRouter } from "expo-router";
 
 const ACCOUNT_TYPES: { value: AccountType; label: string; desc: string }[] = [
   { value: "operator", label: "Operator", desc: "Manage and oversee operations" },
@@ -32,6 +33,8 @@ export default function AuthScreen() {
   const [loading, setLoading] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(1)).current;
+
+  const router = useRouter();
 
 // const { width } = Dimensions.get("window");
 
@@ -94,12 +97,42 @@ export default function AuthScreen() {
         keyboardShouldPersistTaps="handled"
       >
         {/* Header */}
-        <View className="bg-orange-600 px-6 pt-16 pb-10 items-center">
-          <Text className="text-white text-4xl font-bold">🩸 Lifeline BD</Text>
-          <Text className="text-red-200 text-sm mt-2 text-center">
-            Connecting donors, saving lives
-          </Text>
-        </View>
+        {/* Header */}
+<View className="bg-orange-600 px-6 pt-14 pb-10">
+  {/* Top row — logo + go home button */}
+  <View className="flex-row justify-between items-center mb-4">
+    {/* Logo */}
+    <View className="flex-row items-center gap-2">
+      <Text className="text-white text-2xl font-bold">🩸</Text>
+      <Text className="text-white text-xl font-bold tracking-wide">
+        Lifeline BD
+      </Text>
+    </View>
+
+    {/* Go Back Home button */}
+    <TouchableOpacity
+      onPress={() => router.replace("/")}
+      style={{
+        backgroundColor: "rgba(255,255,255,0.2)",
+        paddingHorizontal: 14,
+        paddingVertical: 7,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: "rgba(255,255,255,0.35)",
+      }}
+    >
+      <Text className="text-white text-sm font-semibold">🏠 Home</Text>
+    </TouchableOpacity>
+  </View>
+
+  {/* Welcome message */}
+  <Text className="text-orange-200 text-sm mt-1">
+    Welcome to Lifeline BD
+  </Text>
+  <Text className="text-white text-2xl font-bold mt-1">
+    Connecting donors, saving lives 🩸
+  </Text>
+</View>
 
         {/* Tab switcher */}
         <View className="mx-6 mt-8 flex-row bg-gray-100 rounded-2xl p-1">

@@ -6,9 +6,21 @@ import {
   updateProfile,
   User,
 } from "firebase/auth";
-import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
+
+import {
+  doc,
+  setDoc,
+  getDoc,
+  serverTimestamp,
+  collection,
+  addDoc,
+} from "firebase/firestore";
+
 import { auth, db } from "./firebase";
 import { AccountType } from "../types";
+
+
+// ================= AUTH =================
 
 export const registerUser = async (
   name: string,
@@ -51,11 +63,29 @@ export const logoutUser = async () => {
   }
 };
 
+export const subscribeToAuthChanges = (callback: (user: User | null) => void) => {
+  return onAuthStateChanged(auth, callback);
+};
+
+
+// ================= USER PROFILE =================
+
 export const getUserProfile = async (uid: string) => {
   const snap = await getDoc(doc(db, "users", uid));
   return snap.exists() ? snap.data() : null;
 };
 
-export const subscribeToAuthChanges = (callback: (user: User | null) => void) => {
-  return onAuthStateChanged(auth, callback);
+
+// ================= CONTACTS =================
+
+export const saveContact = async (uid: string, contact: any) => {
+  try {
+    await addDoc(
+      collection(db, "users", uid, "importantContacts"),
+      contact
+    );
+    console.log("Contact saved!");
+  } catch (error) {
+    console.error("Error saving contact:", error);
+  }
 };
