@@ -22,11 +22,11 @@ type Feature = {
 
 const CITIZEN_FEATURES: Feature[] = [
   {
-    icon: "🩸",
-    name: "Donate",
-    desc: "Register as donor",
-    route: "/donate",
-    color: "#fef2f2",
+    icon: "🔔",
+    name: "Women Safety Panic Mode",
+    desc: "Urgent needs",
+    route: "/alerts",
+    color: "#fff7ed",
   },
   {
     icon: "🏥",
@@ -57,11 +57,11 @@ const CITIZEN_FEATURES: Feature[] = [
     color: "#fdf4ff",
   },
   {
-    icon: "🔔",
-    name: "Alerts",
-    desc: "Urgent needs",
-    route: "/alerts",
-    color: "#fff7ed",
+    icon: "🩸",
+    name: "Donate",
+    desc: "Register as donor",
+    route: "/donate",
+    color: "#fef2f2",
   },
   {
     icon: "📞",
