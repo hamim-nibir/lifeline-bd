@@ -1,4 +1,4 @@
-import { Tabs } from "expo-router";
+import { Tabs, useRouter } from "expo-router";
 import { View, Text } from "react-native";
 import WelcomeBanner from "../../components/ui/WelcomeBanner";
 
@@ -6,9 +6,14 @@ type TabIconProps = { focused: boolean; icon: string; label: string };
 
 function TabIcon({ focused, icon, label }: TabIconProps) {
   return (
-    <View className="items-center justify-center gap-1 mt-2">
-      <Text className={`text-2xl ${focused ? "opacity-100" : "opacity-40"}`}>{icon}</Text>
-      <Text className={`text-xs font-medium ${focused ? "text-red-600" : "text-gray-400"}`}>
+    <View style={{ alignItems: "center", justifyContent: "center", marginTop: 8, width: 70, }}>
+      <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.4 }}>{icon}</Text>
+      <Text style={{
+        fontSize: 10,
+        fontWeight: "600",
+        color: focused ? "#f97316" : "#9ca3af",
+        marginTop: 2,
+      }}>
         {label}
       </Text>
     </View>
@@ -17,7 +22,7 @@ function TabIcon({ focused, icon, label }: TabIconProps) {
 
 export default function TabLayout() {
   return (
-    <View className="flex-1">
+    <View style={{ flex: 1 }}>
       <WelcomeBanner />
       <Tabs
         screenOptions={{
@@ -29,14 +34,50 @@ export default function TabLayout() {
             borderTopColor: "#f3f4f6",
             height: 70,
             paddingBottom: 10,
+            paddingTop: 5,
           },
         }}
       >
-        <Tabs.Screen name="index" options={{ tabBarIcon: ({ focused }) => <TabIcon focused={focused} icon="🏠" label="Home" /> }} />
-        <Tabs.Screen name="search" options={{ tabBarIcon: ({ focused }) => <TabIcon focused={focused} icon="🔍" label="Search" /> }} />
-        <Tabs.Screen name="request" options={{ tabBarIcon: ({ focused }) => <TabIcon focused={focused} icon="🩸" label="Request" /> }} />
-        <Tabs.Screen name="notifications" options={{ tabBarIcon: ({ focused }) => <TabIcon focused={focused} icon="🔔" label="Alerts" /> }} />
-        <Tabs.Screen name="profile" options={{ tabBarIcon: ({ focused }) => <TabIcon focused={focused} icon="👤" label="Profile" /> }} />
+        <Tabs.Screen
+          name="index"
+          options={{
+            tabBarIcon: ({ focused }) => (
+              <TabIcon focused={focused} icon="🏠" label="Home" />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="dashboard"
+          options={{
+            tabBarIcon: ({ focused }) => (
+              <TabIcon focused={focused} icon="📊" label="Dashboard" />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="search"
+          options={{
+            tabBarIcon: ({ focused }) => (
+              <TabIcon focused={focused} icon="🔍" label="Search" />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="notifications"
+          options={{
+            tabBarIcon: ({ focused }) => (
+              <TabIcon focused={focused} icon="🔔" label="Alerts" />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="profile"
+          options={{
+            tabBarIcon: ({ focused }) => (
+              <TabIcon focused={focused} icon="👤" label="Profile" />
+            ),
+          }}
+        />
       </Tabs>
     </View>
   );

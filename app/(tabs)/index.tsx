@@ -1,60 +1,82 @@
-import { View, Text } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity } from "react-native";
+import { useRouter } from "expo-router";
 import { useAuthStore } from "../../store/authStore";
-
-const DASHBOARDS = {
-  operator: {
-    color: "bg-purple-600",
-    emoji: "⚙️",
-    title: "Operator Dashboard",
-    subtitle: "Manage operations and users",
-    features: ["User management", "Request oversight", "System reports", "Analytics"],
-  },
-  volunteer: {
-    color: "bg-teal-600",
-    emoji: "🤝",
-    title: "Volunteer Dashboard",
-    subtitle: "Support donors and patients",
-    features: ["Active requests", "Donor assistance", "Event schedule", "My contributions"],
-  },
-  citizen: {
-    color: "bg-orange-600",
-    emoji: "🩸",
-    title: "Citizen Dashboard",
-    subtitle: "Donate or request blood",
-    features: ["Find donors", "Request blood", "My donations", "Nearby banks"],
-  },
-};
+import { StatusBar } from "expo-status-bar";
 
 export default function HomeScreen() {
-  const { accountType, nickname } = useAuthStore();
-  const type = accountType ?? "citizen";
-  const dashboard = DASHBOARDS[type];
+  const router = useRouter();
+  const { nickname, accountType } = useAuthStore();
 
   return (
-    <View className="flex-1 bg-gray-50">
-      <View className={`${dashboard.color} px-6 pt-16 pb-8`}>
-        <Text className="text-white text-3xl">{dashboard.emoji}</Text>
-        <Text className="text-white text-2xl font-bold mt-2">{dashboard.title}</Text>
-        <Text className="text-white opacity-75 text-sm mt-1">{dashboard.subtitle}</Text>
+    <ScrollView style={{ flex: 1, backgroundColor: "#f9fafb" }}>
+      <StatusBar style="light" />
+
+      {/* Header */}
+      <View style={{
+        backgroundColor: "#fc6a03",
+        paddingTop: 56,
+        paddingBottom: 32,
+        paddingHorizontal: 24,
+        alignItems: "center",
+      }}>
+        <Text style={{ fontSize: 40, marginBottom: 8 }}>🩸</Text>
+        <Text style={{ color: "#fff", fontSize: 28, fontWeight: "700", textAlign: "center" }}>
+          Lifeline BD
+        </Text>
+        <Text style={{ color: "#fca5a5", fontSize: 14, marginTop: 6, textAlign: "center" }}>
+          Connecting donors, saving lives
+        </Text>
       </View>
 
-      <View className="px-4 mt-6">
-        <Text className="text-gray-800 text-lg font-semibold mb-3">
-          Features
-        </Text>
-        {dashboard.features.map((feature, i) => (
-          <View key={i} className="bg-white rounded-2xl px-5 py-4 mb-3 flex-row items-center">
-            <View className="w-2 h-2 rounded-full bg-gray-300 mr-3" />
-            <Text className="text-gray-600">{feature}</Text>
-            <Text className="ml-auto text-gray-300">→</Text>
-          </View>
-        ))}
-        <View className="bg-yellow-50 border border-yellow-200 rounded-2xl px-5 py-4 mt-2">
-          <Text className="text-yellow-700 text-sm font-medium">
-            🚧 More features coming soon
+      <View style={{ padding: 20 }}>
+        {/* Welcome card */}
+        <View style={{
+          backgroundColor: "#fff",
+          borderRadius: 20,
+          padding: 20,
+          marginBottom: 16,
+          borderWidth: 1,
+          borderColor: "#f3f4f6",
+        }}>
+          <Text style={{ color: "#374151", fontSize: 16, fontWeight: "700" }}>
+            Hello, {nickname ?? "User"} 👋
+          </Text>
+          <Text style={{ color: "#9ca3af", fontSize: 13, marginTop: 4 }}>
+            You are logged in as{" "}
+            <Text style={{ color: "#dc2626", fontWeight: "600", textTransform: "capitalize" }}>
+              {accountType ?? "citizen"}
+            </Text>
+          </Text>
+        </View>
+
+        {/* Go to dashboard */}
+        <TouchableOpacity
+          onPress={() => router.push("/(tabs)/dashboard")}
+          style={{
+            backgroundColor: "#f97316",
+            borderRadius: 16,
+            paddingVertical: 16,
+            alignItems: "center",
+            marginBottom: 12,
+          }}
+        >
+          <Text style={{ color: "#fff", fontWeight: "700", fontSize: 15 }}>
+            Go to My Dashboard →
+          </Text>
+        </TouchableOpacity>
+
+        <View style={{
+          backgroundColor: "#fef2f2",
+          borderRadius: 16,
+          padding: 16,
+          marginTop: 8,
+          alignItems: "center",
+        }}>
+          <Text style={{ color: "#9ca3af", fontSize: 13 }}>
+            🏗️ Home page is being designed
           </Text>
         </View>
       </View>
-    </View>
+    </ScrollView>
   );
 }
