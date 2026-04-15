@@ -8,6 +8,7 @@ import {
 import { useRouter } from "expo-router";
 import { logoutUser } from "../../services/auth";
 import { useAuthStore } from "../../store/authStore";
+import Logo from "../../components/ui/logo";
 
 const { width } = Dimensions.get("window");
 const CARD_SIZE = (width - 48 - 1) / 3;
@@ -117,19 +118,7 @@ export default function CitizenDashboard() {
           marginBottom: 16,
         }}>
           {/* Logo — clickable → home */}
-          <TouchableOpacity onPress={() => router.replace("/(tabs)")}>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <Text style={{ fontSize: 22 }}>🩸</Text>
-              <Text style={{
-                color: "#fff",
-                fontSize: 20,
-                fontWeight: "700",
-                letterSpacing: 0.5,
-              }}>
-                Lifeline BD
-              </Text>
-            </View>
-          </TouchableOpacity>
+          <Logo onPress={() => router.push("/(tabs)")} />
 
           {/* Logout button */}
           <TouchableOpacity
