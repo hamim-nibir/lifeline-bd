@@ -10,7 +10,7 @@ import { logoutUser } from "../../services/auth";
 import { useAuthStore } from "../../store/authStore";
 
 const { width } = Dimensions.get("window");
-const CARD_SIZE = (width - 48 - 16) / 3;
+const CARD_SIZE = (width - 48 - 1) / 3;
 
 type Feature = {
   icon: string;
@@ -29,11 +29,11 @@ const CITIZEN_FEATURES: Feature[] = [
     color: "#fff7ed",
   },
   {
-    icon: "🏥",
-    name: "Request",
-    desc: "Request blood",
-    route: "/request-blood",
-    color: "#fff7ed",
+    icon: "⚠️",
+    name: "Accident",
+    desc: "Urgent report",
+    route: "/(feat)/accident-report",
+    color: "#f0fdf4",
   },
   {
     icon: "🔍",
