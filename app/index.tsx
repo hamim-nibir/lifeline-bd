@@ -9,6 +9,8 @@ import {
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 
+import Logo from "../components/ui/logo";
+
 
 const { height } = Dimensions.get("window");
 
@@ -21,13 +23,7 @@ export default function LandingScreen() {
 
       {/* Top bar with Login button */}
       <View className="absolute top-0 left-0 right-0 z-10 flex-row justify-between items-center px-6 pt-14 pb-4">
-        <View className="flex-row items-center gap-2">
-          <Image
-            source={require("../assets/logo.png")}
-            style={{ width: 40, height: 40, resizeMode: "contain" }}
-          />
-          <Text className="text-white text-2xl font-bold">Lifeline BD</Text>
-        </View>
+        <Logo onPress={() => router.push("/")} />
         <TouchableOpacity
           onPress={() => router.push("/(auth)/login")}
           className="bg-white px-5 py-2 rounded-full"
