@@ -4,9 +4,11 @@ import {
   TouchableOpacity,
   ScrollView,
   Dimensions,
+  Image
 } from "react-native";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+
 
 const { height } = Dimensions.get("window");
 
@@ -19,7 +21,13 @@ export default function LandingScreen() {
 
       {/* Top bar with Login button */}
       <View className="absolute top-0 left-0 right-0 z-10 flex-row justify-between items-center px-6 pt-14 pb-4">
-        <Text className="text-white text-xl font-bold">🩸 Lifeline BD</Text>
+        <View className="flex-row items-center gap-2">
+          <Image
+            source={require("../assets/logo.png")}
+            style={{ width: 40, height: 40, resizeMode: "contain" }}
+          />
+          <Text className="text-white text-2xl font-bold">Lifeline BD</Text>
+        </View>
         <TouchableOpacity
           onPress={() => router.push("/(auth)/login")}
           className="bg-white px-5 py-2 rounded-full"
@@ -33,8 +41,8 @@ export default function LandingScreen() {
         className="bg-orange-600 items-center justify-center px-8"
         style={{ height: height * 0.50 }}
       >
-        <Text className="text-white text-6xl mb-4">🩸</Text>
-        <Text className="text-white text-4xl font-bold text-center leading-tight">
+        <Text className="text-white text-4xl font-bold text-center leading-tight"
+        style={{marginTop:50}}>
           Emergency Help
         </Text>
         <Text className="text-red-200 text-base text-center mt-4 leading-relaxed">
