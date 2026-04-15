@@ -8,24 +8,28 @@ export default function RootLayout() {
   const router = useRouter();
   const segments = useSegments();
   const {
-    setUser,
-    setLoading,
-    setNickname,
-    setAccountType,
-    setShowWelcome,
-    user,
-    isLoading,
+    setUser, setLoading, setNickname,
+    setAccountType, setShowWelcome,
+    user, isLoading,
   } = useAuthStore();
 
   useEffect(() => {
     const unsubscribe = subscribeToAuthChanges(async (firebaseUser) => {
       if (firebaseUser) {
-        const profile = await getUserProfile(firebaseUser.uid);
-        if (profile) {
-          setNickname(profile.nickname);
-          setAccountType(profile.accountType);
-          setShowWelcome(true);
+        try {
+          const profile = await getUserProfile(firebaseUser.uid);
+          if (profile) {
+            setNickname(profile.nickname ?? firebaseUser.displayName ?? "User");
+            setAccountType(profile.accountType ?? null);
+          } else {
+            setNickname(firebaseUser.displayName ?? "User");
+            setAccountType(null);
+          }
+        } catch {
+          setNickname(firebaseUser.displayName ?? "User");
+          setAccountType(null);
         }
+        setShowWelcome(true);
       } else {
         setNickname(null);
         setAccountType(null);
@@ -39,12 +43,17 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (isLoading) return;
-    const inAuthGroup = segments[0] === "(auth)";
     const inTabsGroup = segments[0] === "(tabs)";
+    const inAuthGroup = segments[0] === "(auth)";
+    const inFeatGroup = segments[0] === "(feat)";
 
     if (!user && inTabsGroup) {
       router.replace("/");
-    } else if (user && !inTabsGroup) {
+    } else if (!user && inFeatGroup) {
+      router.replace("/");
+    } else if (user && !inTabsGroup && !inAuthGroup && !inFeatGroup) {
+      router.replace("/(tabs)");
+    } else if (user && inAuthGroup) {
       router.replace("/(tabs)");
     }
   }, [user, isLoading, segments]);
@@ -54,6 +63,7 @@ export default function RootLayout() {
       <Stack.Screen name="index" />
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="(auth)" />
+      <Stack.Screen name="(feat)" />
     </Stack>
   );
 }
