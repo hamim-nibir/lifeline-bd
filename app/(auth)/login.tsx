@@ -14,6 +14,7 @@ import { useRef, useState } from "react";
 import { loginUser, registerUser } from "../../services/auth";
 import { AccountType } from "../../types";
 import { useRouter } from "expo-router";
+import Logo from "../../components/ui/logo";
 
 const ACCOUNT_TYPES: { value: AccountType; label: string; desc: string }[] = [
   { value: "operator", label: "Operator", desc: "Manage and oversee operations" },
@@ -97,20 +98,14 @@ export default function AuthScreen() {
         keyboardShouldPersistTaps="handled"
       >
         {/* Header */}
-        {/* Header */}
 <View className="bg-orange-600 px-6 pt-14 pb-10">
   {/* Top row — logo + go home button */}
   <View className="flex-row justify-between items-center mb-4">
     {/* Logo */}
-    <View className="flex-row items-center gap-2">
-      <Text className="text-white text-2xl font-bold">🩸</Text>
-      <Text className="text-white text-xl font-bold tracking-wide">
-        Lifeline BD
-      </Text>
-    </View>
+    <Logo onPress={() => router.push("/")} />
 
     {/* Go Back Home button */}
-    <TouchableOpacity
+    {/* <TouchableOpacity
       onPress={() => router.replace("/")}
       style={{
         backgroundColor: "rgba(255,255,255,0.2)",
@@ -122,7 +117,8 @@ export default function AuthScreen() {
       }}
     >
       <Text className="text-white text-sm font-semibold">🏠 Home</Text>
-    </TouchableOpacity>
+    </TouchableOpacity> */}
+    {/* Go Back Home button */}
   </View>
 
   {/* Welcome message */}
@@ -130,7 +126,7 @@ export default function AuthScreen() {
     Welcome to Lifeline BD
   </Text>
   <Text className="text-white text-2xl font-bold mt-1">
-    Connecting donors, saving lives 🩸
+    Your Emergency Helpline
   </Text>
 </View>
 
