@@ -20,6 +20,13 @@ type Feature = {
 const OPERATOR_FEATURES: Feature[] = [
   { icon: "🔔", name: "Alerts", desc: "View notifications", route: "/(feat)/operator-alerts", color: "#fef2f2" },
   { icon: "📋", name: "Accident Reports", desc: "Review reports", route: "/(feat)/accident-reports", color: "#fff7ed" },
+  {
+  icon: "🪪",
+  name: "Verifications",
+  desc: "Review ID requests",
+  route: "/(feat)/operator-verifications",
+  color: "#f5f3ff",
+},
   { icon: "🩸", name: "Blood Requests", desc: "Manage requests", route: "/(feat)/blood-requests", color: "#fef2f2" },
   { icon: "👥", name: "User Management", desc: "Manage users", route: "/(feat)/user-management", color: "#eff6ff" },
   { icon: "🏥", name: "Blood Banks", desc: "Manage banks", route: "/(feat)/manage-banks", color: "#f0fdf4" },
