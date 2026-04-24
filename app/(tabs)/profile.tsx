@@ -294,7 +294,7 @@ export default function ProfileScreen() {
                 borderWidth: 1, borderColor: "#fed7aa",
               }}
             >
-              <Text style={{ color: "#f97316", fontSize: 13, fontWeight: "700" }}>✏️ Update</Text>
+              <Text style={{ color: "#f97316", fontSize: 13, fontWeight: "700" }}>✏️ Edit</Text>
             </TouchableOpacity>
           </View>
 
