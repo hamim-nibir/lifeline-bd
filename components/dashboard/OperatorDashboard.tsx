@@ -5,6 +5,7 @@ import {
 import { useRouter } from "expo-router";
 import { logoutUser } from "../../services/auth";
 import { useAuthStore } from "../../store/authStore";
+import Logo from "../../components/ui/logo";
 
 const { width } = Dimensions.get("window");
 const CARD_SIZE = (width - 48 - 16) / 3;
@@ -18,7 +19,7 @@ type Feature = {
 };
 
 const OPERATOR_FEATURES: Feature[] = [
-  { icon: "🔔", name: "Alerts", desc: "View notifications", route: "/(feat)/operator-alerts", color: "#fef2f2" },
+  { icon: "🔔", name: "Panic Alerts", desc: "View notifications", route: "/(feat)/operator-alerts", color: "#fef2f2" },
   { icon: "📋", name: "Accident Reports", desc: "Review reports", route: "/(feat)/accident-reports", color: "#fff7ed" },
   {
   icon: "🪪",
@@ -51,27 +52,24 @@ export default function OperatorDashboard() {
 
   return (
     <View style={{ flex: 1, backgroundColor: "#f9fafb" }}>
-      {/* Header — purple for operator */}
+      {/* ── Header ── */}
       <View style={{
         backgroundColor: "#7c3aed",
         paddingTop: 56,
         paddingBottom: 24,
         paddingHorizontal: 20,
       }}>
+        {/* Top row — logo + logout */}
         <View style={{
           flexDirection: "row",
           justifyContent: "space-between",
           alignItems: "center",
           marginBottom: 16,
         }}>
-          <TouchableOpacity onPress={() => router.replace("/(tabs)")}>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <Text style={{ fontSize: 22 }}>🩸</Text>
-              <Text style={{ color: "#fff", fontSize: 20, fontWeight: "700" }}>
-                Lifeline BD
-              </Text>
-            </View>
-          </TouchableOpacity>
+          {/* Logo — clickable → home */}
+          <Logo onPress={() => router.push("/(tabs)")} />
+
+          {/* Logout button */}
           <TouchableOpacity
             onPress={handleLogout}
             style={{
@@ -83,11 +81,15 @@ export default function OperatorDashboard() {
               borderColor: "rgba(255,255,255,0.35)",
             }}
           >
-            <Text style={{ color: "#fff", fontSize: 13, fontWeight: "600" }}>Logout</Text>
+            <Text style={{ color: "#fff", fontSize: 13, fontWeight: "600" }}>
+              Logout
+            </Text>
           </TouchableOpacity>
         </View>
+
+        {/* Dashboard title */}
         <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 13, fontWeight: "500" }}>
-          Welcome back, {nickname ?? "Operator"}
+          Welcome back, {nickname ?? "User"}
         </Text>
         <Text style={{ color: "#fff", fontSize: 24, fontWeight: "700", marginTop: 2 }}>
           Operator Dashboard
