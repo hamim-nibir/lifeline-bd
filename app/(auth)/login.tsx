@@ -4,7 +4,6 @@ import {
   TextInput,
   TouchableOpacity,
   Animated,
-  Dimensions,
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
@@ -15,6 +14,7 @@ import { loginUser, registerUser } from "../../services/auth";
 import { AccountType } from "../../types";
 import { useRouter } from "expo-router";
 import Logo from "../../components/ui/logo";
+import { Ionicons } from "@expo/vector-icons";
 
 const ACCOUNT_TYPES: { value: AccountType; label: string; desc: string }[] = [
   { value: "operator", label: "Operator", desc: "Manage and oversee operations" },
@@ -33,15 +33,32 @@ export default function AuthScreen() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [emailTouched, setEmailTouched] = useState(false);
+  const [confirmTouched, setConfirmTouched] = useState(false);
 
+  const fadeAnim = useRef(new Animated.Value(1)).current;
   const router = useRouter();
 
-// const { width } = Dimensions.get("window");
+  // ── Validation helpers ──
+  const isValidEmail = (val: string) =>
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
 
+  const passwordsMatch = confirmPassword.length > 0 && password === confirmPassword;
+  const passwordsMismatch = confirmPassword.length > 0 && password !== confirmPassword;
+  const emailInvalid = emailTouched && email.length > 0 && !isValidEmail(email);
 
-  // const slideAnim = useRef(new Animated.Value(0)).current;
-  
+  const isFormValid = !isLogin
+    ? (
+        name.trim().length > 0 &&
+        nickname.trim().length > 0 &&
+        isValidEmail(email) &&
+        password.length >= 6 &&
+        password === confirmPassword
+      )
+    : (email.length > 0 && password.length > 0);
+
   const switchTab = (toLogin: boolean) => {
     if (toLogin === isLogin) return;
     setError("");
@@ -52,6 +69,8 @@ export default function AuthScreen() {
     setIsLogin(toLogin);
     setName(""); setNickname(""); setEmail("");
     setPassword(""); setConfirmPassword("");
+    setShowPassword(false); setShowConfirmPassword(false);
+    setEmailTouched(false); setConfirmTouched(false);
     setAccountType("citizen");
   };
 
@@ -72,7 +91,11 @@ export default function AuthScreen() {
       }
     } catch (err: any) {
       const code = err.code;
-      if (code === "auth/user-not-found" || code === "auth/wrong-password" || code === "auth/invalid-credential") {
+      if (
+        code === "auth/user-not-found" ||
+        code === "auth/wrong-password" ||
+        code === "auth/invalid-credential"
+      ) {
         setError("Invalid email or password.");
       } else if (code === "auth/email-already-in-use") {
         setError("This email is already registered.");
@@ -86,7 +109,6 @@ export default function AuthScreen() {
     }
   };
 
-
   return (
     <KeyboardAvoidingView
       className="flex-1 bg-white"
@@ -97,40 +119,33 @@ export default function AuthScreen() {
         contentContainerStyle={{ flexGrow: 1 }}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Header */}
-<View className="bg-orange-600 px-6 pt-14 pb-10">
-  {/* Top row — logo + go home button */}
-  <View className="flex-row justify-between items-center mb-4">
-    {/* Logo */}
-    <Logo onPress={() => router.push("/")} />
+        {/* ── Header ── */}
+        <View className="bg-orange-600 px-6 pt-14 pb-10">
+          <View className="flex-row justify-between items-center mb-4">
+            <Logo onPress={() => router.push("/")} />
+            <TouchableOpacity
+              onPress={() => router.replace("/")}
+              style={{
+                backgroundColor: "rgba(255,255,255,0.2)",
+                paddingHorizontal: 14,
+                paddingVertical: 7,
+                borderRadius: 20,
+                borderWidth: 1,
+                borderColor: "rgba(255,255,255,0.35)",
+              }}
+            >
+              <Text className="text-white text-sm font-semibold">🏠 Home</Text>
+            </TouchableOpacity>
+          </View>
+          <Text className="text-orange-200 text-sm mt-1">
+            Welcome to Lifeline BD
+          </Text>
+          <Text className="text-white text-2xl font-bold mt-1">
+            Your Emergency Helpline
+          </Text>
+        </View>
 
-    {/* Go Back Home button */}
-    {/* <TouchableOpacity
-      onPress={() => router.replace("/")}
-      style={{
-        backgroundColor: "rgba(255,255,255,0.2)",
-        paddingHorizontal: 14,
-        paddingVertical: 7,
-        borderRadius: 20,
-        borderWidth: 1,
-        borderColor: "rgba(255,255,255,0.35)",
-      }}
-    >
-      <Text className="text-white text-sm font-semibold">🏠 Home</Text>
-    </TouchableOpacity> */}
-    {/* Go Back Home button */}
-  </View>
-
-  {/* Welcome message */}
-  <Text className="text-orange-200 text-sm mt-1">
-    Welcome to Lifeline BD
-  </Text>
-  <Text className="text-white text-2xl font-bold mt-1">
-    Your Emergency Helpline
-  </Text>
-</View>
-
-        {/* Tab switcher */}
+        {/* ── Tab switcher ── */}
         <View className="mx-6 mt-8 flex-row bg-gray-100 rounded-2xl p-1">
           <TouchableOpacity
             onPress={() => switchTab(true)}
@@ -150,13 +165,17 @@ export default function AuthScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Form */}
+        {/* ── Form ── */}
         <Animated.View className="mx-6 mt-6" style={{ opacity: fadeAnim }}>
 
+          {/* Register-only fields */}
           {!isLogin && (
             <>
+              {/* Full Name */}
               <View className="mb-4">
-                <Text className="text-gray-600 text-sm font-medium mb-1.5">Full Name</Text>
+                <Text className="text-gray-600 text-sm font-medium mb-1.5">
+                  Full Name
+                </Text>
                 <TextInput
                   className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3.5 text-gray-800"
                   placeholder="Enter your full name"
@@ -167,8 +186,11 @@ export default function AuthScreen() {
                 />
               </View>
 
+              {/* Nickname */}
               <View className="mb-4">
-                <Text className="text-gray-600 text-sm font-medium mb-1.5">Nickname</Text>
+                <Text className="text-gray-600 text-sm font-medium mb-1.5">
+                  Nickname
+                </Text>
                 <TextInput
                   className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3.5 text-gray-800"
                   placeholder="Choose a nickname"
@@ -181,46 +203,111 @@ export default function AuthScreen() {
             </>
           )}
 
+          {/* Email */}
           <View className="mb-4">
-            <Text className="text-gray-600 text-sm font-medium mb-1.5">Email Address</Text>
+            <Text className="text-gray-600 text-sm font-medium mb-1.5">
+              Email Address
+            </Text>
             <TextInput
-              className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3.5 text-gray-800"
+              className={`bg-gray-50 border rounded-xl px-4 py-3.5 text-gray-800 ${
+                emailInvalid ? "border-red-400" : "border-gray-200"
+              }`}
               placeholder="Enter your email"
               placeholderTextColor="#9ca3af"
               value={email}
               onChangeText={setEmail}
+              onBlur={() => setEmailTouched(true)}
               keyboardType="email-address"
               autoCapitalize="none"
             />
+            {emailInvalid && (
+              <Text className="text-red-500 text-xs mt-1.5 ml-1">
+                ⚠️ Please enter a valid email address
+              </Text>
+            )}
           </View>
 
+          {/* Password */}
           <View className="mb-4">
-            <Text className="text-gray-600 text-sm font-medium mb-1.5">Password</Text>
-            <TextInput
-              className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3.5 text-gray-800"
-              placeholder="Enter your password"
-              placeholderTextColor="#9ca3af"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-            />
+            <Text className="text-gray-600 text-sm font-medium mb-1.5">
+              Password
+            </Text>
+            <View
+              className={`flex-row bg-gray-50 border rounded-xl items-center pr-4 ${
+                password.length > 0 && password.length < 6
+                  ? "border-red-400"
+                  : "border-gray-200"
+              }`}
+            >
+              <TextInput
+                className="flex-1 px-4 py-3.5 text-gray-800"
+                placeholder="Enter your password"
+                placeholderTextColor="#9ca3af"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+              />
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                <Ionicons
+                  name={showPassword ? "eye-off-outline" : "eye-outline"}
+                  size={20}
+                  color="#9ca3af"
+                />
+              </TouchableOpacity>
+            </View>
+            {password.length > 0 && password.length < 6 && (
+              <Text className="text-red-500 text-xs mt-1.5 ml-1">
+                ⚠️ Password must be at least 6 characters
+              </Text>
+            )}
           </View>
 
+          {/* Register-only: Confirm Password + Account Type */}
           {!isLogin && (
             <>
+              {/* Confirm Password */}
               <View className="mb-4">
-                <Text className="text-gray-600 text-sm font-medium mb-1.5">Confirm Password</Text>
-                <TextInput
-                  className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3.5 text-gray-800"
-                  placeholder="Re-enter your password"
-                  placeholderTextColor="#9ca3af"
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                  secureTextEntry
-                />
+                <Text className="text-gray-600 text-sm font-medium mb-1.5">
+                  Confirm Password
+                </Text>
+                <View
+                  className={`flex-row bg-gray-50 border rounded-xl items-center pr-4 ${
+                    passwordsMismatch
+                      ? "border-red-400"
+                      : passwordsMatch
+                      ? "border-green-400"
+                      : "border-gray-200"
+                  }`}
+                >
+                  <TextInput
+                    className="flex-1 px-4 py-3.5 text-gray-800"
+                    placeholder="Re-enter your password"
+                    placeholderTextColor="#9ca3af"
+                    value={confirmPassword}
+                    onChangeText={(v) => {
+                      setConfirmPassword(v);
+                      setConfirmTouched(true);
+                    }}
+                    secureTextEntry={!showConfirmPassword}
+                  />
+                  <TouchableOpacity
+                    onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                  >
+                    <Ionicons
+                      name={showConfirmPassword ? "eye-off-outline" : "eye-outline"}
+                      size={20}
+                      color="#9ca3af"
+                    />
+                  </TouchableOpacity>
+                </View>
+                {passwordsMismatch && (
+                  <Text className="text-red-500 text-xs mt-1.5 ml-1">
+                    ⚠️ Passwords do not match
+                  </Text>
+                )}
               </View>
 
-              {/* Account type selector */}
+              {/* Account Type */}
               <View className="mb-6">
                 <Text className="text-gray-600 text-sm font-medium mb-3">
                   Account Type
@@ -231,11 +318,10 @@ export default function AuthScreen() {
                     onPress={() => setAccountType(type.value)}
                     className={`flex-row items-center p-4 rounded-xl mb-2 border ${
                       accountType === type.value
-                        ? "bg-red-50 border-red-300"
+                        ? "bg-orange-50 border-orange-300"
                         : "bg-gray-50 border-gray-200"
                     }`}
                   >
-                    {/* Radio circle */}
                     <View
                       className={`w-5 h-5 rounded-full border-2 mr-3 items-center justify-center ${
                         accountType === type.value
@@ -250,12 +336,16 @@ export default function AuthScreen() {
                     <View className="flex-1">
                       <Text
                         className={`font-semibold text-sm ${
-                          accountType === type.value ? "text-orange-600" : "text-gray-700"
+                          accountType === type.value
+                            ? "text-orange-600"
+                            : "text-gray-700"
                         }`}
                       >
                         {type.label}
                       </Text>
-                      <Text className="text-gray-400 text-xs mt-0.5">{type.desc}</Text>
+                      <Text className="text-gray-400 text-xs mt-0.5">
+                        {type.desc}
+                      </Text>
                     </View>
                   </TouchableOpacity>
                 ))}
@@ -263,16 +353,20 @@ export default function AuthScreen() {
             </>
           )}
 
+          {/* Error message */}
           {error !== "" && (
             <View className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-4">
-              <Text className="text-orange-600 text-sm">{error}</Text>
+              <Text className="text-red-600 text-sm">{error}</Text>
             </View>
           )}
 
+          {/* Submit button — disabled until form is valid */}
           <TouchableOpacity
             onPress={handleSubmit}
-            disabled={loading}
-            className="bg-orange-600 rounded-xl py-4 items-center mt-2"
+            disabled={loading || !isFormValid}
+            className={`rounded-xl py-4 items-center mt-2 ${
+              isFormValid ? "bg-orange-600" : "bg-orange-300"
+            }`}
           >
             {loading ? (
               <ActivityIndicator color="#ffffff" />
@@ -283,6 +377,7 @@ export default function AuthScreen() {
             )}
           </TouchableOpacity>
 
+          {/* Switch hint */}
           <View className="flex-row justify-center mt-6 mb-10">
             <Text className="text-gray-400 text-sm">
               {isLogin ? "Don't have an account? " : "Already have an account? "}
