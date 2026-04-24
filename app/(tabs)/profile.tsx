@@ -16,6 +16,8 @@ import {
 } from "../../types";
 import Logo from "../../components/ui/logo";
 
+import { db } from "../../services/firebase";
+
 const BLOOD_GROUPS: BloodGroup[] = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 const BP_OPTIONS: BloodPressure[] = ["High", "Low", "Normal"];
 const TRACKING_OPTIONS: TrackingAccuracy[] = ["High Accuracy", "Balanced", "Battery Saving"];
@@ -46,17 +48,34 @@ export default function ProfileScreen() {
   const [nidSubmitting, setNidSubmitting] = useState(false);
 
   const fetchProfile = async () => {
-    if (!user?.uid) return;
-    try {
-      const data = await getUserProfile(user.uid);
-      setProfile(data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
+    setRefreshing(false);
   };
+
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    setLoading(true);
+
+    const { doc, onSnapshot } = require("firebase/firestore");
+
+    const unsubscribe = onSnapshot(
+      doc(db, "users", user.uid),
+      (snap: any) => {
+        if (snap.exists()) {
+          setProfile(snap.data());
+        }
+        setLoading(false);
+        setRefreshing(false);
+      },
+      (err: any) => {
+        console.error("Profile listener error:", err);
+        setLoading(false);
+        setRefreshing(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [user?.uid]);
 
   useEffect(() => { fetchProfile(); }, [user?.uid]);
 
@@ -275,7 +294,7 @@ export default function ProfileScreen() {
                 borderWidth: 1, borderColor: "#fed7aa",
               }}
             >
-              <Text style={{ color: "#f97316", fontSize: 13, fontWeight: "700" }}>✏️ Edit</Text>
+              <Text style={{ color: "#f97316", fontSize: 13, fontWeight: "700" }}>✏️ Update</Text>
             </TouchableOpacity>
           </View>
 
@@ -462,7 +481,7 @@ export default function ProfileScreen() {
             maxHeight: "90%",
           }}>
             <Text style={{ fontSize: 18, fontWeight: "700", color: "#1f2937", marginBottom: 20 }}>
-              Edit Profile
+              ✏️ Edit Profile
             </Text>
             <ScrollView showsVerticalScrollIndicator={false}>
 

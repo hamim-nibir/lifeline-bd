@@ -141,6 +141,9 @@ export default function WomenSafetyScreen() {
         setActivating(true);
         try {
             if (!isActivated) {
+                const mapsLink = `https://maps.google.com/?q=${location.latitude},${location.longitude}`;
+
+                // Save active panic alert
                 await setDoc(doc(db, "panicAlerts", uid), {
                     uid,
                     nickname: nickname ?? "Unknown",
@@ -149,6 +152,24 @@ export default function WomenSafetyScreen() {
                     activatedAt: serverTimestamp(),
                     active: true,
                 });
+
+                // ── Write notification for operators ──
+                await addDoc(collection(db, "notifications"), {
+                    type: "panicAlert",
+                    title: "🚨 Women Safety Panic Alert",
+                    body: `${nickname ?? "Someone"} has activated emergency panic mode!`,
+                    reportedBy: nickname ?? "Unknown",
+                    reportedByUid: uid,
+                    location: {
+                        latitude: location.latitude,
+                        longitude: location.longitude,
+                        mapsLink,
+                    },
+                    severity: "high",
+                    read: false,
+                    createdAt: serverTimestamp(),
+                });
+
                 setIsActivated(true);
                 notifyContacts(location);
                 Alert.alert(
@@ -157,6 +178,19 @@ export default function WomenSafetyScreen() {
                 );
             } else {
                 await deleteDoc(doc(db, "panicAlerts", uid));
+
+                // ── Write deactivation notification ──
+                await addDoc(collection(db, "notifications"), {
+                    type: "panicAlert",
+                    title: "✅ Panic Alert Deactivated",
+                    body: `${nickname ?? "Someone"} has deactivated their panic mode.`,
+                    reportedBy: nickname ?? "Unknown",
+                    reportedByUid: uid,
+                    severity: "normal",
+                    read: false,
+                    createdAt: serverTimestamp(),
+                });
+
                 setIsActivated(false);
                 Alert.alert("Deactivated", "Panic mode has been turned off.");
             }

@@ -19,8 +19,8 @@ type Feature = {
 };
 
 const OPERATOR_FEATURES: Feature[] = [
-  { icon: "🔔", name: "Panic Alerts", desc: "View notifications", route: "/(feat)/operator-alerts", color: "#fef2f2" },
-  { icon: "📋", name: "Accident Reports", desc: "Review reports", route: "/(feat)/accident-reports", color: "#fff7ed" },
+  { icon: "🔔", name: "Panic Alerts", desc: "View notifications", route: "/(feat)/operator-panic-alerts", color: "#fef2f2" },
+  { icon: "📋", name: "Accident Reports", desc: "Review reports", route: "/(feat)/operator-accident-reports", color: "#fff7ed" },
   {
   icon: "🪪",
   name: "Verifications",

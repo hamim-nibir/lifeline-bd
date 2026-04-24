@@ -7,80 +7,73 @@ import { useRouter } from "expo-router";
 import { db } from "../../services/firebase";
 import {
   collection, query, orderBy,
-  getDocs, updateDoc, doc,
+  onSnapshot, updateDoc, doc, where,
 } from "firebase/firestore";
 
-type Notification = {
+type PanicAlert = {
   id: string;
   type: string;
   title: string;
   body: string;
   reportedBy: string;
-  accidentType: string;
-  location: {
-    latitude: number;
-    longitude: number;
-    address: string;
-    mapsLink: string;
-  };
   severity: "high" | "normal";
   read: boolean;
   createdAt: any;
+  location?: {
+    latitude: number;
+    longitude: number;
+    mapsLink: string;
+  };
 };
 
 export default function OperatorAlertsScreen() {
   const router = useRouter();
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [alerts, setAlerts] = useState<PanicAlert[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const fetchNotifications = async () => {
-    try {
-      const q = query(
-        collection(db, "notifications"),
-        orderBy("createdAt", "desc")
-      );
-      const snap = await getDocs(q);
-      const list: Notification[] = snap.docs.map((d) => ({
+  // ── Real-time listener filtered to panicAlert only ──
+  useEffect(() => {
+    const q = query(
+      collection(db, "notifications"),
+      where("type", "==", "panicAlert"),
+      orderBy("createdAt", "desc")
+    );
+
+    const unsub = onSnapshot(q, (snap) => {
+      const list: PanicAlert[] = snap.docs.map((d) => ({
         id: d.id,
-        ...(d.data() as Omit<Notification, "id">),
+        ...(d.data() as Omit<PanicAlert, "id">),
       }));
-      setNotifications(list);
-    } catch (err) {
-      console.error("Failed to fetch notifications:", err);
-    } finally {
+      setAlerts(list);
       setLoading(false);
       setRefreshing(false);
-    }
-  };
+    }, (err) => {
+      console.error("Failed to fetch panic alerts:", err);
+      setLoading(false);
+      setRefreshing(false);
+    });
 
-  useEffect(() => { fetchNotifications(); }, []);
+    return () => unsub();
+  }, []);
 
   const handleMarkRead = async (id: string) => {
     try {
       await updateDoc(doc(db, "notifications", id), { read: true });
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-      );
     } catch (err) {
       console.error("Failed to mark as read:", err);
     }
   };
 
-  const handleOpenMap = (mapsLink: string) => {
-    Linking.openURL(mapsLink);
-  };
-
   const formatTime = (timestamp: any) => {
     if (!timestamp?.toDate) return "Just now";
-    const date: Date = timestamp.toDate();
-    return date.toLocaleString("en-BD", {
+    return timestamp.toDate().toLocaleString("en-BD", {
       day: "2-digit", month: "short",
       hour: "2-digit", minute: "2-digit",
     });
   };
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const unreadCount = alerts.filter((a) => !a.read).length;
 
   return (
     <View style={{ flex: 1, backgroundColor: "#f9fafb" }}>
@@ -100,9 +93,11 @@ export default function OperatorAlertsScreen() {
           <Text style={{ color: "#fff", fontSize: 18, fontWeight: "700" }}>←</Text>
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={{ color: "#fff", fontSize: 20, fontWeight: "700" }}>Alerts</Text>
+          <Text style={{ color: "#fff", fontSize: 20, fontWeight: "700" }}>Panic Alerts</Text>
           <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: 12, marginTop: 1 }}>
-            {unreadCount > 0 ? `${unreadCount} unread notification${unreadCount > 1 ? "s" : ""}` : "All caught up"}
+            {unreadCount > 0
+              ? `${unreadCount} unread alert${unreadCount > 1 ? "s" : ""}`
+              : "All caught up"}
           </Text>
         </View>
         {unreadCount > 0 && (
@@ -120,7 +115,7 @@ export default function OperatorAlertsScreen() {
       {loading ? (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
           <ActivityIndicator size="large" color="#7c3aed" />
-          <Text style={{ color: "#9ca3af", marginTop: 12 }}>Loading alerts...</Text>
+          <Text style={{ color: "#9ca3af", marginTop: 12 }}>Loading panic alerts...</Text>
         </View>
       ) : (
         <ScrollView
@@ -130,36 +125,36 @@ export default function OperatorAlertsScreen() {
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
-              onRefresh={() => { setRefreshing(true); fetchNotifications(); }}
+              onRefresh={() => setRefreshing(true)}
               colors={["#7c3aed"]}
             />
           }
         >
-          {notifications.length === 0 ? (
+          {alerts.length === 0 ? (
             <View style={{
               backgroundColor: "#fff", borderRadius: 16, padding: 40,
               alignItems: "center", borderWidth: 1, borderColor: "#f3f4f6",
             }}>
-              <Text style={{ fontSize: 40, marginBottom: 12 }}>🔔</Text>
+              <Text style={{ fontSize: 40, marginBottom: 12 }}>🛡️</Text>
               <Text style={{ color: "#374151", fontWeight: "700", fontSize: 16 }}>
-                No alerts yet
+                No panic alerts
               </Text>
               <Text style={{ color: "#9ca3af", fontSize: 13, marginTop: 6, textAlign: "center" }}>
-                Accident reports and panic alerts will appear here
+                Women safety panic alerts will appear here
               </Text>
             </View>
           ) : (
-            notifications.map((notif) => (
+            alerts.map((alert) => (
               <View
-                key={notif.id}
+                key={alert.id}
                 style={{
-                  backgroundColor: notif.read ? "#fff" : "#fdf4ff",
+                  backgroundColor: alert.read ? "#fff" : "#fef2f2",
                   borderRadius: 16, padding: 16, marginBottom: 12,
                   borderWidth: 1,
-                  borderColor: notif.read ? "#f3f4f6" : "#e9d5ff",
-                  elevation: notif.read ? 0 : 2,
-                  shadowColor: "#7c3aed",
-                  shadowOpacity: notif.read ? 0 : 0.08,
+                  borderColor: alert.read ? "#f3f4f6" : "#fecaca",
+                  elevation: alert.read ? 0 : 2,
+                  shadowColor: "#dc2626",
+                  shadowOpacity: alert.read ? 0 : 0.08,
                   shadowRadius: 6, shadowOffset: { width: 0, height: 2 },
                 }}
               >
@@ -167,92 +162,82 @@ export default function OperatorAlertsScreen() {
                 <View style={{ flexDirection: "row", alignItems: "flex-start", marginBottom: 10 }}>
                   <View style={{ flex: 1 }}>
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                      <Text style={{ fontSize: 18 }}>
-                        {notif.type === "accidentReport" ? "🚨" : "🔔"}
-                      </Text>
+                      <Text style={{ fontSize: 18 }}>🚨</Text>
                       <Text style={{ color: "#1f2937", fontWeight: "700", fontSize: 14, flex: 1 }}>
-                        {notif.title}
+                        {alert.title}
                       </Text>
-                      {!notif.read && (
+                      {!alert.read && (
                         <View style={{
                           width: 8, height: 8, borderRadius: 4,
-                          backgroundColor: "#7c3aed",
+                          backgroundColor: "#dc2626",
                         }} />
                       )}
                     </View>
                     <Text style={{ color: "#4b5563", fontSize: 13, lineHeight: 18 }}>
-                      {notif.body}
+                      {alert.body}
                     </Text>
                   </View>
                 </View>
 
                 {/* Severity badge */}
-                <View style={{ flexDirection: "row", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+                <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
                   <View style={{
-                    backgroundColor: notif.severity === "high" ? "#fef2f2" : "#f0fdf4",
+                    backgroundColor: alert.severity === "high" ? "#fef2f2" : "#f0fdf4",
                     borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4,
                     borderWidth: 1,
-                    borderColor: notif.severity === "high" ? "#fecaca" : "#86efac",
+                    borderColor: alert.severity === "high" ? "#fecaca" : "#86efac",
                   }}>
                     <Text style={{
                       fontSize: 11, fontWeight: "700",
-                      color: notif.severity === "high" ? "#dc2626" : "#15803d",
+                      color: alert.severity === "high" ? "#dc2626" : "#15803d",
                     }}>
-                      {notif.severity === "high" ? "🔴 High Severity" : "🟢 Normal"}
-                    </Text>
-                  </View>
-                  <View style={{
-                    backgroundColor: "#f5f3ff", borderRadius: 20,
-                    paddingHorizontal: 10, paddingVertical: 4,
-                    borderWidth: 1, borderColor: "#ddd6fe",
-                  }}>
-                    <Text style={{ fontSize: 11, fontWeight: "600", color: "#7c3aed" }}>
-                      {notif.accidentType}
+                      {alert.severity === "high" ? "🔴 High Severity" : "🟢 Normal"}
                     </Text>
                   </View>
                 </View>
 
-                {/* Location */}
-                <View style={{
-                  backgroundColor: "#f8fafc", borderRadius: 10,
-                  padding: 12, marginBottom: 12,
-                  borderWidth: 1, borderColor: "#e2e8f0",
-                }}>
-                  <Text style={{ color: "#64748b", fontSize: 11, fontWeight: "600", marginBottom: 4 }}>
-                    📍 LOCATION
-                  </Text>
-                  <Text style={{ color: "#374151", fontSize: 12, lineHeight: 18 }}>
-                    {notif.location?.address ?? "Address not available"}
-                  </Text>
-                  <Text style={{ color: "#9ca3af", fontSize: 11, marginTop: 2 }}>
-                    {notif.location?.latitude?.toFixed(5)}, {notif.location?.longitude?.toFixed(5)}
-                  </Text>
-                </View>
+                {/* Location (if available) */}
+                {alert.location?.mapsLink && (
+                  <View style={{
+                    backgroundColor: "#f8fafc", borderRadius: 10,
+                    padding: 12, marginBottom: 12,
+                    borderWidth: 1, borderColor: "#e2e8f0",
+                  }}>
+                    <Text style={{ color: "#64748b", fontSize: 11, fontWeight: "600", marginBottom: 4 }}>
+                      📍 LOCATION
+                    </Text>
+                    <Text style={{ color: "#9ca3af", fontSize: 11 }}>
+                      {alert.location.latitude?.toFixed(5)}, {alert.location.longitude?.toFixed(5)}
+                    </Text>
+                  </View>
+                )}
 
                 {/* Timestamp */}
                 <Text style={{ color: "#9ca3af", fontSize: 11, marginBottom: 12 }}>
-                  🕐 {formatTime(notif.createdAt)}  •  Reported by {notif.reportedBy}
+                  🕐 {formatTime(alert.createdAt)}  •  By {alert.reportedBy}
                 </Text>
 
                 {/* Action buttons */}
                 <View style={{ flexDirection: "row", gap: 8 }}>
-                  <TouchableOpacity
-                    onPress={() => handleOpenMap(notif.location?.mapsLink)}
-                    style={{
-                      flex: 1, backgroundColor: "#7c3aed", borderRadius: 10,
-                      paddingVertical: 10, alignItems: "center",
-                      flexDirection: "row", justifyContent: "center", gap: 6,
-                    }}
-                  >
-                    <Text style={{ fontSize: 14 }}>🗺️</Text>
-                    <Text style={{ color: "#fff", fontWeight: "700", fontSize: 13 }}>
-                      Open Map
-                    </Text>
-                  </TouchableOpacity>
-
-                  {!notif.read && (
+                  {alert.location?.mapsLink && (
                     <TouchableOpacity
-                      onPress={() => handleMarkRead(notif.id)}
+                      onPress={() => Linking.openURL(alert.location!.mapsLink)}
+                      style={{
+                        flex: 1, backgroundColor: "#7c3aed", borderRadius: 10,
+                        paddingVertical: 10, alignItems: "center",
+                        flexDirection: "row", justifyContent: "center", gap: 6,
+                      }}
+                    >
+                      <Text style={{ fontSize: 14 }}>🗺️</Text>
+                      <Text style={{ color: "#fff", fontWeight: "700", fontSize: 13 }}>
+                        Open Map
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+
+                  {!alert.read && (
+                    <TouchableOpacity
+                      onPress={() => handleMarkRead(alert.id)}
                       style={{
                         flex: 1, backgroundColor: "#f3f4f6", borderRadius: 10,
                         paddingVertical: 10, alignItems: "center",
