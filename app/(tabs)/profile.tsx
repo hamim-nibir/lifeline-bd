@@ -14,6 +14,7 @@ import {
   BloodGroup, BloodPressure,
   TrackingAccuracy, VerificationStatus,
 } from "../../types";
+import Logo from "../../components/ui/logo";
 
 const BLOOD_GROUPS: BloodGroup[] = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 const BP_OPTIONS: BloodPressure[] = ["High", "Low", "Normal"];
@@ -61,7 +62,7 @@ export default function ProfileScreen() {
 
   const handleLogout = async () => {
     await logoutUser();
-    router.replace("/");
+    router.replace("/login");
   };
 
   // ── Toggle helpers ──
@@ -204,35 +205,45 @@ export default function ProfileScreen() {
 
       {/* ── Header ── */}
       <View style={{
-        backgroundColor: "#f97316", paddingTop: 56,
-        paddingBottom: 24, paddingHorizontal: 20,
+        backgroundColor: "#f97316",
+        paddingTop: 56,
+        paddingBottom: 24,
+        paddingHorizontal: 20,
       }}>
+        {/* Top row — logo + logout */}
         <View style={{
-          flexDirection: "row", justifyContent: "space-between",
-          alignItems: "center", marginBottom: 16,
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 16,
         }}>
-          <TouchableOpacity onPress={() => router.replace("/(tabs)")}>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <Text style={{ fontSize: 22 }}>🩸</Text>
-              <Text style={{ color: "#fff", fontSize: 20, fontWeight: "700" }}>Lifeline BD</Text>
-            </View>
-          </TouchableOpacity>
+          {/* Logo — clickable → home */}
+          <Logo onPress={() => router.push("/(tabs)")} />
+
+          {/* Logout button */}
           <TouchableOpacity
             onPress={handleLogout}
             style={{
-              backgroundColor: "rgba(255,255,255,0.2)", paddingHorizontal: 14,
-              paddingVertical: 7, borderRadius: 20,
-              borderWidth: 1, borderColor: "rgba(255,255,255,0.35)",
+              backgroundColor: "rgba(255,255,255,0.2)",
+              paddingHorizontal: 14,
+              paddingVertical: 7,
+              borderRadius: 20,
+              borderWidth: 1,
+              borderColor: "rgba(255,255,255,0.35)",
             }}
           >
-            <Text style={{ color: "#fff", fontSize: 13, fontWeight: "600" }}>Logout</Text>
+            <Text style={{ color: "#fff", fontSize: 13, fontWeight: "600" }}>
+              Logout
+            </Text>
           </TouchableOpacity>
         </View>
-        <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 13 }}>
-          {profile?.nickname ?? nickname ?? "User"}
+
+        {/* Dashboard title */}
+        <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 13, fontWeight: "500" }}>
+          Welcome back, {nickname ?? "User"}
         </Text>
         <Text style={{ color: "#fff", fontSize: 24, fontWeight: "700", marginTop: 2 }}>
-          My Profile
+          Profile Settings
         </Text>
       </View>
 
