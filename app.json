@@ -48,7 +48,8 @@
         {
           "locationAlwaysAndWhenInUsePermission": "Allow Lifeline BD to use your location."
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ]
   }
 }
