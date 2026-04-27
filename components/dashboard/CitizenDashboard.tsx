@@ -24,8 +24,8 @@ type Feature = {
 const CITIZEN_FEATURES: Feature[] = [
   {
     icon: "🔔",
-    name: "Women Safety Panic Mode",
-    desc: "Urgent needs",
+    name: "Safety Panic Mode",
+    desc: "Urgent response",
     route: "/(feat)/women-safety",
     color: "#fff7ed",
   },

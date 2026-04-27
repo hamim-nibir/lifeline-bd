@@ -15,6 +15,7 @@ import * as Location from "expo-location";
 import MapView, { Marker } from "react-native-maps";
 import { useAuthStore } from "../../store/authStore";
 import { db } from "../../services/firebase";
+import { getUserProfile } from "../../services/auth";
 import {
     doc,
     setDoc,
@@ -26,6 +27,10 @@ import {
     updateDoc,
     deleteDoc as deleteContactDoc,
 } from "firebase/firestore";
+
+import VerificationGuard from "../../components/ui/VerificationGuard";
+import { useVerification } from "../../hooks/useVerification";
+import Logo from "../../components/ui/logo";
 
 type Contact = {
     id: string;
@@ -58,6 +63,16 @@ export default function WomenSafetyScreen() {
     const [editingContact, setEditingContact] = useState<Contact | null>(null);
     const [form, setForm] = useState(EMPTY_FORM);
     const [savingContact, setSavingContact] = useState(false);
+
+        // verification
+        const [profile, setProfile] = useState<any>(null);
+        const { showGuard, setShowGuard, requireVerified } = useVerification();
+    
+        // ── Fetch profile to check verification status ──
+        useEffect(() => {
+            if (!uid) return;
+            getUserProfile(uid).then(setProfile).catch(console.error);
+        }, [uid]);
 
     // ── Fetch location on mount ──
     useEffect(() => {
@@ -148,6 +163,7 @@ export default function WomenSafetyScreen() {
                     longitude: location.longitude,
                     activatedAt: serverTimestamp(),
                     active: true,
+                    status: "active",
                 });
                 setIsActivated(true);
                 notifyContacts(location);
@@ -261,56 +277,26 @@ export default function WomenSafetyScreen() {
     return (
         <View style={{ flex: 1, backgroundColor: "#f9fafb" }}>
 
-            {/* ── Header ── */}
+            {/* Header */}
             <View style={{
-                backgroundColor: "#f97316",
-                paddingTop: 56,
-                paddingBottom: 24,
-                paddingHorizontal: 20,
+                backgroundColor: "#f97316", paddingTop: 56, paddingBottom: 20,
+                paddingHorizontal: 20, flexDirection: "row", alignItems: "center", gap: 14,
             }}>
-                <View style={{
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: 16,
-                }}>
-                    <TouchableOpacity onPress={() => router.replace("/(tabs)")}>
-                        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                            <Text style={{ fontSize: 22 }}>🩸</Text>
-                            <Text style={{
-                                color: "#fff",
-                                fontSize: 20,
-                                fontWeight: "700",
-                                letterSpacing: 0.5,
-                            }}>
-                                Lifeline BD
-                            </Text>
-                        </View>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        onPress={() => router.back()}
-                        style={{
-                            backgroundColor: "rgba(255,255,255,0.2)",
-                            paddingHorizontal: 14,
-                            paddingVertical: 7,
-                            borderRadius: 20,
-                            borderWidth: 1,
-                            borderColor: "rgba(255,255,255,0.35)",
-                        }}
-                    >
-                        <Text style={{ color: "#fff", fontSize: 13, fontWeight: "600" }}>
-                            ← Back
-                        </Text>
-                    </TouchableOpacity>
+                <TouchableOpacity
+                    onPress={() => router.back()}
+                    style={{
+                        backgroundColor: "rgba(255,255,255,0.2)", width: 36, height: 36,
+                        borderRadius: 18, alignItems: "center", justifyContent: "center",
+                    }}
+                >
+                    <Text style={{ color: "#fff", fontSize: 18, fontWeight: "700" }}>←</Text>
+                </TouchableOpacity>
+                <View>
+                    <Text style={{ color: "#fff", fontSize: 20, fontWeight: "700" }}>Safety Panic Mode</Text>
+                    <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: 12, marginTop: 1 }}>
+                        Activate panic mode to alert emergency services
+                    </Text>
                 </View>
-
-                <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 13, fontWeight: "500" }}>
-                    Welcome back, {nickname ?? "User"}
-                </Text>
-                <Text style={{ color: "#fff", fontSize: 24, fontWeight: "700", marginTop: 2 }}>
-                    Women Safety
-                </Text>
             </View>
 
             {/* ── Scrollable Main Content ── */}
@@ -319,10 +305,48 @@ export default function WomenSafetyScreen() {
                 contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
                 showsVerticalScrollIndicator={false}
             >
+                {/* Verification warning banner — shown only if not verified */}
+                {profile && profile.verificationStatus !== "verified" && (
+                    <View style={{
+                        backgroundColor: "#fff7ed",
+                        borderWidth: 1,
+                        borderColor: "#fed7aa",
+                        borderRadius: 12,
+                        padding: 12,
+                        marginBottom: 16,
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 10,
+                    }}>
+                        <Text style={{ fontSize: 18 }}>⚠️</Text>
+                        <View style={{ flex: 1 }}>
+                            <Text style={{ color: "#92400e", fontWeight: "700", fontSize: 13 }}>
+                                Account not verified
+                            </Text>
+                            <Text style={{ color: "#b45309", fontSize: 12, marginTop: 2 }}>
+                                Verify your account to activate panic mode
+                            </Text>
+                        </View>
+                        <TouchableOpacity
+                            onPress={() => router.push("/(tabs)/profile" as any)}
+                            style={{
+                                backgroundColor: "#f97316",
+                                borderRadius: 8,
+                                paddingHorizontal: 10,
+                                paddingVertical: 5,
+                            }}
+                        >
+                            <Text style={{ color: "#fff", fontSize: 11, fontWeight: "700" }}>
+                                Verify
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
+
                 {/* Activate Button */}
                 <View style={{ alignItems: "center", marginBottom: 24 }}>
                     <TouchableOpacity
-                        onPress={handleTogglePanic}
+                        onPress={() => requireVerified(profile, handleTogglePanic)}
                         disabled={activating || loading}
                         style={{
                             backgroundColor: isActivated ? "#dc2626" : "#f97316",
@@ -338,6 +362,7 @@ export default function WomenSafetyScreen() {
                             shadowRadius: 10,
                             borderWidth: 5,
                             borderColor: isActivated ? "#fca5a5" : "#fed7aa",
+                            opacity: profile?.verificationStatus !== "verified" ? 0.6 : 1,
                         }}
                         activeOpacity={0.85}
                     >
@@ -345,7 +370,11 @@ export default function WomenSafetyScreen() {
                             <ActivityIndicator color="#fff" size="large" />
                         ) : (
                             <>
-                                <Text style={{ fontSize: 40 }}>{isActivated ? "🚨" : "🛡️"}</Text>
+                                <Text style={{ fontSize: 40 }}>
+                                    {profile?.verificationStatus !== "verified"
+                                        ? "🔒"
+                                        : isActivated ? "🚨" : "🛡️"}
+                                </Text>
                                 <Text style={{
                                     color: "#fff",
                                     fontWeight: "800",
@@ -367,7 +396,9 @@ export default function WomenSafetyScreen() {
                     }}>
                         {isActivated
                             ? "🚨 Panic mode is ACTIVE — contacts notified!"
-                            : "Tap to activate emergency panic mode"}
+                            : profile?.verificationStatus !== "verified"
+                                ? "🔒 Verify your account to use this feature"
+                                : "Tap to activate emergency panic mode"}
                     </Text>
                 </View>
 
@@ -436,7 +467,6 @@ export default function WomenSafetyScreen() {
                     marginBottom: 16,
                     overflow: "hidden",
                 }}>
-                    {/* Dropdown Header */}
                     <TouchableOpacity
                         onPress={() => setContactsExpanded(!contactsExpanded)}
                         style={{
@@ -450,11 +480,7 @@ export default function WomenSafetyScreen() {
                     >
                         <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                             <Text style={{ fontSize: 18 }}>👥</Text>
-                            <Text style={{
-                                color: "#9a3412",
-                                fontWeight: "700",
-                                fontSize: 15,
-                            }}>
+                            <Text style={{ color: "#9a3412", fontWeight: "700", fontSize: 15 }}>
                                 Important Contacts
                             </Text>
                             <View style={{
@@ -473,15 +499,12 @@ export default function WomenSafetyScreen() {
                         </Text>
                     </TouchableOpacity>
 
-                    {/* Expanded Content */}
                     {contactsExpanded && (
                         <View style={{ padding: 12 }}>
                             {contacts.length === 0 ? (
                                 <Text style={{
-                                    color: "#9ca3af",
-                                    fontSize: 13,
-                                    textAlign: "center",
-                                    paddingVertical: 8,
+                                    color: "#9ca3af", fontSize: 13,
+                                    textAlign: "center", paddingVertical: 8,
                                 }}>
                                     No important contacts added yet.
                                 </Text>
@@ -500,11 +523,7 @@ export default function WomenSafetyScreen() {
                                         }}
                                     >
                                         <View style={{ flex: 1 }}>
-                                            <Text style={{
-                                                color: "#1f2937",
-                                                fontWeight: "700",
-                                                fontSize: 14,
-                                            }}>
+                                            <Text style={{ color: "#1f2937", fontWeight: "700", fontSize: 14 }}>
                                                 {contact.name}
                                             </Text>
                                             {contact.phone ? (
@@ -513,8 +532,6 @@ export default function WomenSafetyScreen() {
                                                 </Text>
                                             ) : null}
                                         </View>
-
-                                        {/* Edit & Delete buttons */}
                                         <View style={{ flexDirection: "row", gap: 8 }}>
                                             <TouchableOpacity
                                                 onPress={() => openEditModal(contact)}
@@ -546,8 +563,6 @@ export default function WomenSafetyScreen() {
                                     </View>
                                 ))
                             )}
-
-                            {/* Add Contact Button */}
                             {contacts.length < 3 && (
                                 <TouchableOpacity
                                     onPress={openAddModal}
@@ -618,16 +633,10 @@ export default function WomenSafetyScreen() {
                         padding: 24,
                         paddingBottom: 40,
                     }}>
-                        <Text style={{
-                            fontSize: 18,
-                            fontWeight: "700",
-                            color: "#1f2937",
-                            marginBottom: 20,
-                        }}>
+                        <Text style={{ fontSize: 18, fontWeight: "700", color: "#1f2937", marginBottom: 20 }}>
                             {editingContact ? "Edit Contact" : "Add Important Contact"}
                         </Text>
 
-                        {/* Name */}
                         <Text style={labelStyle}>Name</Text>
                         <TextInput
                             style={inputStyle}
@@ -636,7 +645,6 @@ export default function WomenSafetyScreen() {
                             onChangeText={(t) => setForm({ ...form, name: t })}
                         />
 
-                        {/* Phone */}
                         <Text style={labelStyle}>Phone Number</Text>
                         <TextInput
                             style={inputStyle}
@@ -646,7 +654,6 @@ export default function WomenSafetyScreen() {
                             onChangeText={(t) => setForm({ ...form, phone: t })}
                         />
 
-                        {/* WhatsApp */}
                         <Text style={labelStyle}>WhatsApp Number</Text>
                         <TextInput
                             style={inputStyle}
@@ -656,7 +663,6 @@ export default function WomenSafetyScreen() {
                             onChangeText={(t) => setForm({ ...form, whatsapp: t })}
                         />
 
-                        {/* Facebook */}
                         <Text style={labelStyle}>Facebook Profile Link</Text>
                         <TextInput
                             style={inputStyle}
@@ -667,30 +673,22 @@ export default function WomenSafetyScreen() {
                             onChangeText={(t) => setForm({ ...form, facebook: t })}
                         />
 
-                        {/* Buttons */}
                         <View style={{ flexDirection: "row", gap: 12, marginTop: 8 }}>
                             <TouchableOpacity
                                 onPress={() => setModalVisible(false)}
                                 style={{
-                                    flex: 1,
-                                    backgroundColor: "#f3f4f6",
-                                    borderRadius: 12,
-                                    paddingVertical: 14,
-                                    alignItems: "center",
+                                    flex: 1, backgroundColor: "#f3f4f6",
+                                    borderRadius: 12, paddingVertical: 14, alignItems: "center",
                                 }}
                             >
                                 <Text style={{ color: "#374151", fontWeight: "600" }}>Cancel</Text>
                             </TouchableOpacity>
-
                             <TouchableOpacity
                                 onPress={handleSaveContact}
                                 disabled={savingContact}
                                 style={{
-                                    flex: 1,
-                                    backgroundColor: "#f97316",
-                                    borderRadius: 12,
-                                    paddingVertical: 14,
-                                    alignItems: "center",
+                                    flex: 1, backgroundColor: "#f97316",
+                                    borderRadius: 12, paddingVertical: 14, alignItems: "center",
                                 }}
                             >
                                 {savingContact ? (
@@ -703,6 +701,13 @@ export default function WomenSafetyScreen() {
                     </View>
                 </View>
             </Modal>
+
+            {/* ── Verification Guard Popup ── */}
+            <VerificationGuard
+                visible={showGuard}
+                onClose={() => setShowGuard(false)}
+                featureName="Women Safety Panic Mode"
+            />
         </View>
     );
 }

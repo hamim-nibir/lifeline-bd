@@ -1,30 +1,65 @@
 import { View, Text, ScrollView, TouchableOpacity } from "react-native";
 import { useRouter } from "expo-router";
 import { useAuthStore } from "../../store/authStore";
+import { logoutUser } from "../../services/auth";
 import { StatusBar } from "expo-status-bar";
+
+import Logo from "../../components/ui/logo";
 
 export default function HomeScreen() {
   const router = useRouter();
   const { nickname, accountType } = useAuthStore();
 
+  const handleLogout = async () => {
+    await logoutUser();
+    router.replace("/login");
+  };
+
   return (
     <ScrollView style={{ flex: 1, backgroundColor: "#f9fafb" }}>
       <StatusBar style="light" />
 
-      {/* Header */}
+      {/* ── Header ── */}
       <View style={{
-        backgroundColor: "#fc6a03",
+        backgroundColor: "#f97316",
         paddingTop: 56,
-        paddingBottom: 32,
-        paddingHorizontal: 24,
-        alignItems: "center",
+        paddingBottom: 24,
+        paddingHorizontal: 20,
       }}>
-        <Text style={{ fontSize: 40, marginBottom: 8 }}>🩸</Text>
-        <Text style={{ color: "#fff", fontSize: 28, fontWeight: "700", textAlign: "center" }}>
-          Lifeline BD
+        {/* Top row — logo + logout */}
+        <View style={{
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 16,
+        }}>
+          {/* Logo — clickable → home */}
+          <Logo onPress={() => router.push("/(tabs)")} />
+
+          {/* Logout button */}
+          <TouchableOpacity
+            onPress={handleLogout}
+            style={{
+              backgroundColor: "rgba(255,255,255,0.2)",
+              paddingHorizontal: 14,
+              paddingVertical: 7,
+              borderRadius: 20,
+              borderWidth: 1,
+              borderColor: "rgba(255,255,255,0.35)",
+            }}
+          >
+            <Text style={{ color: "#fff", fontSize: 13, fontWeight: "600" }}>
+              Logout
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Dashboard title */}
+        <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 13, fontWeight: "500" }}>
+          Welcome back, {nickname ?? "User"}
         </Text>
-        <Text style={{ color: "#fca5a5", fontSize: 14, marginTop: 6, textAlign: "center" }}>
-          Connecting donors, saving lives
+        <Text style={{ color: "#fff", fontSize: 24, fontWeight: "700", marginTop: 2 }}>
+          Home
         </Text>
       </View>
 
