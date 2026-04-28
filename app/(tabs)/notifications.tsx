@@ -10,7 +10,7 @@ import { db } from "../../services/firebase";
 import {
   collection, query, orderBy, onSnapshot,
   updateDoc, doc, where, addDoc, serverTimestamp,
-  getDoc,
+  getDoc, deleteDoc,
 } from "firebase/firestore";
 
 type Notification = {
@@ -51,6 +51,7 @@ const NOTIF_ICONS: Record<string, string> = {
   panicAlert: "🆘",
   verificationUpdate: "🪪",
   bloodRequest: "🩸",
+  bloodRequestRejected: "❌",
   default: "🔔",
 };
 
@@ -75,8 +76,6 @@ export default function NotificationsScreen() {
   useEffect(() => {
     if (!uid) return;
 
-    // Citizens see only their own notifications
-    // Operators see all notifications
     const q = accountType === "operator"
       ? query(collection(db, "notifications"), orderBy("createdAt", "desc"))
       : query(
@@ -102,7 +101,7 @@ export default function NotificationsScreen() {
     return () => unsub();
   }, [uid, accountType]);
 
-  // Mark single notification as read
+  // ── Mark single as read ──
   const handleMarkRead = async (notifId: string) => {
     try {
       await updateDoc(doc(db, "notifications", notifId), { read: true });
@@ -111,7 +110,7 @@ export default function NotificationsScreen() {
     }
   };
 
-  // Mark all as read
+  // ── Mark all as read ──
   const handleMarkAllRead = async () => {
     const unread = notifications.filter((n) => !n.read);
     try {
@@ -123,16 +122,47 @@ export default function NotificationsScreen() {
     }
   };
 
-  // Open action modal
+  // ── Delete / dismiss single notification ──
+  const handleDismiss = async (notifId: string) => {
+    try {
+      await deleteDoc(doc(db, "notifications", notifId));
+    } catch (err) {
+      console.error("Dismiss failed:", err);
+    }
+  };
+
+  // ── Clear all notifications ──
+  const handleClearAll = () => {
+    Alert.alert(
+      "Clear All",
+      "Remove all notifications? This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Clear All",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await Promise.all(
+                notifications.map((n) => deleteDoc(doc(db, "notifications", n.id)))
+              );
+            } catch (err) {
+              console.error("Clear all failed:", err);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // ── Open action modal ──
   const handleAction = async (notif: Notification) => {
     setSelectedNotif(notif);
 
-    // Mark as read when opened
     if (!notif.read) {
       await handleMarkRead(notif.id);
     }
 
-    // For blood requests — fetch requester details
     if (notif.type === "bloodRequest" && notif.requesterId) {
       setLoadingDetails(true);
       setActionModal(true);
@@ -154,12 +184,10 @@ export default function NotificationsScreen() {
         setLoadingDetails(false);
       }
     } else {
-      // For other types, route directly
       routeAction(notif);
     }
   };
 
-  // Route action based on notification type
   const routeAction = (notif: Notification) => {
     switch (notif.type) {
       case "accidentReport":
@@ -176,12 +204,10 @@ export default function NotificationsScreen() {
     }
   };
 
-  // Open chat between current user and requester
+  // ── Open chat ──
   const handleOpenChat = async () => {
     if (!selectedNotif?.requesterId || !uid) return;
-
     const chatId = [uid, selectedNotif.requesterId].sort().join("_");
-
     try {
       setActionModal(false);
       router.push({
@@ -189,7 +215,7 @@ export default function NotificationsScreen() {
         params: {
           chatId,
           otherUid: selectedNotif.requesterId,
-          otherName: requesterDetails?.name ?? selectedNotif.requesterName ?? "User",
+          otherName: requesterDetails?.nickname ?? selectedNotif.requesterName ?? "User",
         },
       } as any);
     } catch (err) {
@@ -197,12 +223,11 @@ export default function NotificationsScreen() {
     }
   };
 
-  // Reject blood request
+  // ── Reject blood request ──
   const handleRejectRequest = async () => {
     if (!selectedNotif || !uid) return;
     setSendingReject(true);
     try {
-      // Send rejection notification to requester
       if (selectedNotif.requesterId) {
         await addDoc(collection(db, "notifications"), {
           type: "bloodRequestRejected",
@@ -216,7 +241,6 @@ export default function NotificationsScreen() {
         });
       }
 
-      // Mark original notification as actioned
       await updateDoc(doc(db, "notifications", selectedNotif.id), {
         read: true,
         actioned: true,
@@ -238,7 +262,6 @@ export default function NotificationsScreen() {
     const date: Date = timestamp.toDate();
     const now = new Date();
     const diff = Math.floor((now.getTime() - date.getTime()) / 1000);
-
     if (diff < 60) return "Just now";
     if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
     if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
@@ -250,17 +273,23 @@ export default function NotificationsScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: "#f9fafb" }}>
 
-      {/* Header */}
+      {/* ── Header ── */}
       <View style={{
         backgroundColor: accountType === "operator" ? "#7c3aed" : "#f97316",
         paddingTop: 56, paddingBottom: 20, paddingHorizontal: 20,
       }}>
-        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+        <View style={{
+          flexDirection: "row", justifyContent: "space-between",
+          alignItems: "center",
+        }}>
           <View>
             <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 13 }}>
               {accountType === "operator" ? "Operator" : "My"}
             </Text>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginTop: 2 }}>
+            <View style={{
+              flexDirection: "row", alignItems: "center",
+              gap: 10, marginTop: 2,
+            }}>
               <Text style={{ color: "#fff", fontSize: 24, fontWeight: "700" }}>
                 Notifications
               </Text>
@@ -276,21 +305,40 @@ export default function NotificationsScreen() {
               )}
             </View>
           </View>
-          {unreadCount > 0 && (
-            <TouchableOpacity
-              onPress={handleMarkAllRead}
-              style={{
-                backgroundColor: "rgba(255,255,255,0.2)",
-                paddingHorizontal: 12, paddingVertical: 7,
-                borderRadius: 20, borderWidth: 1,
-                borderColor: "rgba(255,255,255,0.35)",
-              }}
-            >
-              <Text style={{ color: "#fff", fontSize: 12, fontWeight: "600" }}>
-                Mark all read
-              </Text>
-            </TouchableOpacity>
-          )}
+
+          {/* Header buttons */}
+          <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
+            {unreadCount > 0 && (
+              <TouchableOpacity
+                onPress={handleMarkAllRead}
+                style={{
+                  backgroundColor: "rgba(255,255,255,0.2)",
+                  paddingHorizontal: 12, paddingVertical: 7,
+                  borderRadius: 20, borderWidth: 1,
+                  borderColor: "rgba(255,255,255,0.35)",
+                }}
+              >
+                <Text style={{ color: "#fff", fontSize: 12, fontWeight: "600" }}>
+                  Mark all read
+                </Text>
+              </TouchableOpacity>
+            )}
+            {notifications.length > 0 && (
+              <TouchableOpacity
+                onPress={handleClearAll}
+                style={{
+                  backgroundColor: "rgba(255,255,255,0.15)",
+                  paddingHorizontal: 12, paddingVertical: 7,
+                  borderRadius: 20, borderWidth: 1,
+                  borderColor: "rgba(255,255,255,0.25)",
+                }}
+              >
+                <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 12, fontWeight: "600" }}>
+                  Clear all
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       </View>
 
@@ -319,9 +367,12 @@ export default function NotificationsScreen() {
             }}>
               <Text style={{ fontSize: 48, marginBottom: 12 }}>🔔</Text>
               <Text style={{ color: "#374151", fontWeight: "700", fontSize: 16 }}>
-                No notifications yet
+                No notifications
               </Text>
-              <Text style={{ color: "#9ca3af", fontSize: 13, marginTop: 6, textAlign: "center" }}>
+              <Text style={{
+                color: "#9ca3af", fontSize: 13,
+                marginTop: 6, textAlign: "center",
+              }}>
                 Your notifications will appear here
               </Text>
             </View>
@@ -345,17 +396,27 @@ export default function NotificationsScreen() {
                     shadowOffset: { width: 0, height: 2 },
                   }}
                 >
-                  {/* Notification content */}
-                  <View style={{ flexDirection: "row", gap: 12, marginBottom: 10 }}>
+                  {/* ── Top row: icon + text + X button ── */}
+                  <View style={{
+                    flexDirection: "row", gap: 12, marginBottom: 10,
+                    alignItems: "flex-start",
+                  }}>
+                    {/* Icon */}
                     <View style={{
                       width: 42, height: 42, borderRadius: 21,
                       backgroundColor: isUnread ? "#fef3c7" : "#f3f4f6",
                       alignItems: "center", justifyContent: "center",
+                      flexShrink: 0,
                     }}>
                       <Text style={{ fontSize: 20 }}>{icon}</Text>
                     </View>
+
+                    {/* Text content */}
                     <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+                      <View style={{
+                        flexDirection: "row", justifyContent: "space-between",
+                        alignItems: "flex-start",
+                      }}>
                         <Text style={{
                           color: "#1f2937", fontWeight: "700",
                           fontSize: 14, flex: 1, marginRight: 8,
@@ -365,7 +426,8 @@ export default function NotificationsScreen() {
                         {isUnread && (
                           <View style={{
                             width: 8, height: 8, borderRadius: 4,
-                            backgroundColor: "#f97316", marginTop: 4,
+                            backgroundColor: "#f97316", marginTop: 5,
+                            marginRight: 4,
                           }} />
                         )}
                       </View>
@@ -375,13 +437,34 @@ export default function NotificationsScreen() {
                       }}>
                         {notif.body}
                       </Text>
-                      <Text style={{ color: "#9ca3af", fontSize: 11, marginTop: 6 }}>
+                      <Text style={{
+                        color: "#9ca3af", fontSize: 11, marginTop: 6,
+                      }}>
                         {formatTime(notif.createdAt)}
                       </Text>
                     </View>
+
+                    {/* ── X (dismiss) button ── */}
+                    <TouchableOpacity
+                      onPress={() => handleDismiss(notif.id)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      style={{
+                        width: 26, height: 26, borderRadius: 13,
+                        backgroundColor: "#f3f4f6",
+                        alignItems: "center", justifyContent: "center",
+                        flexShrink: 0, marginTop: 1,
+                      }}
+                    >
+                      <Text style={{
+                        color: "#9ca3af", fontSize: 13,
+                        fontWeight: "700", lineHeight: 16,
+                      }}>
+                        ✕
+                      </Text>
+                    </TouchableOpacity>
                   </View>
 
-                  {/* Action buttons */}
+                  {/* ── Action buttons row ── */}
                   <View style={{ flexDirection: "row", gap: 8 }}>
                     {isUnread && (
                       <TouchableOpacity
@@ -392,13 +475,14 @@ export default function NotificationsScreen() {
                           alignItems: "center",
                         }}
                       >
-                        <Text style={{ color: "#374151", fontSize: 12, fontWeight: "600" }}>
+                        <Text style={{
+                          color: "#374151", fontSize: 12, fontWeight: "600",
+                        }}>
                           ✓ Mark Read
                         </Text>
                       </TouchableOpacity>
                     )}
 
-                    {/* Take Action — shown for actionable types */}
                     {(notif.type === "accidentReport" ||
                       notif.type === "panicAlert" ||
                       notif.type === "bloodRequest" ||
@@ -417,7 +501,9 @@ export default function NotificationsScreen() {
                           {notif.type === "verificationUpdate" ? "👤" :
                            notif.type === "bloodRequest" ? "🩸" : "→"}
                         </Text>
-                        <Text style={{ color: "#fff", fontSize: 12, fontWeight: "700" }}>
+                        <Text style={{
+                          color: "#fff", fontSize: 12, fontWeight: "700",
+                        }}>
                           {notif.type === "verificationUpdate"
                             ? "View Profile"
                             : notif.type === "bloodRequest"
@@ -434,7 +520,9 @@ export default function NotificationsScreen() {
         </ScrollView>
       )}
 
-      {/* ── Blood Request Action Modal ── */}
+      {/* ══════════════════════════════════════════
+          Blood Request Action Modal
+      ══════════════════════════════════════════ */}
       <Modal
         visible={actionModal}
         animationType="slide"
@@ -457,7 +545,9 @@ export default function NotificationsScreen() {
               flexDirection: "row", justifyContent: "space-between",
               alignItems: "center", marginBottom: 20,
             }}>
-              <Text style={{ fontSize: 18, fontWeight: "700", color: "#1f2937" }}>
+              <Text style={{
+                fontSize: 18, fontWeight: "700", color: "#1f2937",
+              }}>
                 🩸 Blood Request Details
               </Text>
               <TouchableOpacity
@@ -468,7 +558,8 @@ export default function NotificationsScreen() {
                 }}
                 style={{
                   backgroundColor: "#f3f4f6", borderRadius: 20,
-                  width: 32, height: 32, alignItems: "center", justifyContent: "center",
+                  width: 32, height: 32, alignItems: "center",
+                  justifyContent: "center",
                 }}
               >
                 <Text style={{ fontWeight: "700", fontSize: 16 }}>✕</Text>
@@ -484,13 +575,15 @@ export default function NotificationsScreen() {
               </View>
             ) : requesterDetails ? (
               <>
-                {/* Requester info */}
                 <View style={{
                   backgroundColor: "#fff7ed", borderRadius: 14,
                   padding: 16, marginBottom: 16,
                   borderWidth: 1, borderColor: "#fed7aa",
                 }}>
-                  <Text style={{ color: "#92400e", fontWeight: "700", fontSize: 13, marginBottom: 12 }}>
+                  <Text style={{
+                    color: "#92400e", fontWeight: "700",
+                    fontSize: 13, marginBottom: 12,
+                  }}>
                     REQUESTER INFORMATION
                   </Text>
                   <DetailRow label="Name" value={requesterDetails.name} />
@@ -500,23 +593,26 @@ export default function NotificationsScreen() {
                   <DetailRow label="Blood Group" value={requesterDetails.bloodGroup} last />
                 </View>
 
-                {/* Request message */}
                 {selectedNotif?.body && (
                   <View style={{
                     backgroundColor: "#f8fafc", borderRadius: 12,
                     padding: 12, marginBottom: 16,
                     borderWidth: 1, borderColor: "#e2e8f0",
                   }}>
-                    <Text style={{ color: "#64748b", fontSize: 11, fontWeight: "700", marginBottom: 4 }}>
+                    <Text style={{
+                      color: "#64748b", fontSize: 11,
+                      fontWeight: "700", marginBottom: 4,
+                    }}>
                       REQUEST MESSAGE
                     </Text>
-                    <Text style={{ color: "#374151", fontSize: 13, lineHeight: 18 }}>
+                    <Text style={{
+                      color: "#374151", fontSize: 13, lineHeight: 18,
+                    }}>
                       {selectedNotif.body}
                     </Text>
                   </View>
                 )}
 
-                {/* Action buttons */}
                 <View style={{ flexDirection: "row", gap: 10 }}>
                   <TouchableOpacity
                     onPress={() => {
@@ -530,7 +626,9 @@ export default function NotificationsScreen() {
                       borderColor: "#fecaca",
                     }}
                   >
-                    <Text style={{ color: "#dc2626", fontWeight: "700", fontSize: 13 }}>
+                    <Text style={{
+                      color: "#dc2626", fontWeight: "700", fontSize: 13,
+                    }}>
                       ❌ Decline
                     </Text>
                   </TouchableOpacity>
@@ -545,7 +643,9 @@ export default function NotificationsScreen() {
                     }}
                   >
                     <Text style={{ fontSize: 16 }}>💬</Text>
-                    <Text style={{ color: "#fff", fontWeight: "700", fontSize: 14 }}>
+                    <Text style={{
+                      color: "#fff", fontWeight: "700", fontSize: 14,
+                    }}>
                       Open Chat
                     </Text>
                   </TouchableOpacity>
@@ -556,7 +656,9 @@ export default function NotificationsScreen() {
         </View>
       </Modal>
 
-      {/* ── Reject Modal ── */}
+      {/* ══════════════════════════════════════════
+          Reject Modal
+      ══════════════════════════════════════════ */}
       <Modal
         visible={rejectModal}
         animationType="slide"
@@ -571,20 +673,29 @@ export default function NotificationsScreen() {
             backgroundColor: "#fff", borderTopLeftRadius: 24,
             borderTopRightRadius: 24, padding: 24, paddingBottom: 40,
           }}>
-            <Text style={{ fontSize: 18, fontWeight: "700", color: "#1f2937", marginBottom: 8 }}>
+            <Text style={{
+              fontSize: 18, fontWeight: "700",
+              color: "#1f2937", marginBottom: 8,
+            }}>
               Decline Request
             </Text>
-            <Text style={{ color: "#6b7280", fontSize: 13, marginBottom: 20 }}>
+            <Text style={{
+              color: "#6b7280", fontSize: 13, marginBottom: 20,
+            }}>
               Optionally explain why you are declining this request.
             </Text>
 
-            <Text style={{ color: "#374151", fontSize: 13, fontWeight: "600", marginBottom: 8 }}>
+            <Text style={{
+              color: "#374151", fontSize: 13,
+              fontWeight: "600", marginBottom: 8,
+            }}>
               Reason (Optional)
             </Text>
             <TextInput
               style={{
-                backgroundColor: "#f9fafb", borderWidth: 1, borderColor: "#e5e7eb",
-                borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12,
+                backgroundColor: "#f9fafb", borderWidth: 1,
+                borderColor: "#e5e7eb", borderRadius: 12,
+                paddingHorizontal: 16, paddingVertical: 12,
                 fontSize: 14, color: "#1f2937", minHeight: 80,
                 textAlignVertical: "top", marginBottom: 20,
               }}
@@ -600,7 +711,8 @@ export default function NotificationsScreen() {
                 onPress={() => setRejectModal(false)}
                 style={{
                   flex: 1, backgroundColor: "#f3f4f6",
-                  borderRadius: 12, paddingVertical: 14, alignItems: "center",
+                  borderRadius: 12, paddingVertical: 14,
+                  alignItems: "center",
                 }}
               >
                 <Text style={{ color: "#374151", fontWeight: "700" }}>Cancel</Text>
@@ -610,19 +722,23 @@ export default function NotificationsScreen() {
                 disabled={sendingReject}
                 style={{
                   flex: 1, backgroundColor: "#dc2626",
-                  borderRadius: 12, paddingVertical: 14, alignItems: "center",
+                  borderRadius: 12, paddingVertical: 14,
+                  alignItems: "center",
                 }}
               >
                 {sendingReject ? (
                   <ActivityIndicator color="#fff" size="small" />
                 ) : (
-                  <Text style={{ color: "#fff", fontWeight: "700" }}>Send Decline</Text>
+                  <Text style={{ color: "#fff", fontWeight: "700" }}>
+                    Send Decline
+                  </Text>
                 )}
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
+
     </View>
   );
 }
@@ -635,8 +751,13 @@ const DetailRow = ({ label, value, last = false }: {
     alignItems: "center", paddingVertical: 7,
     borderBottomWidth: last ? 0 : 1, borderBottomColor: "#fde68a",
   }}>
-    <Text style={{ color: "#92400e", fontSize: 12, fontWeight: "600" }}>{label}</Text>
-    <Text style={{ color: "#1f2937", fontSize: 13, fontWeight: "600", maxWidth: "65%", textAlign: "right" }}>
+    <Text style={{ color: "#92400e", fontSize: 12, fontWeight: "600" }}>
+      {label}
+    </Text>
+    <Text style={{
+      color: "#1f2937", fontSize: 13, fontWeight: "600",
+      maxWidth: "65%", textAlign: "right",
+    }}>
       {value}
     </Text>
   </View>
