@@ -37,23 +37,23 @@ const ALL_BLOOD_GROUPS: BloodGroup[] = [
 
 // Who can donate to whom
 const COMPATIBLE_DONORS: Record<BloodGroup, BloodGroup[]> = {
-  "A+":  ["A+", "A-", "O+", "O-"],
-  "A-":  ["A-", "O-"],
-  "B+":  ["B+", "B-", "O+", "O-"],
-  "B-":  ["B-", "O-"],
-  "O+":  ["O+", "O-"],
-  "O-":  ["O-"],
+  "A+": ["A+", "A-", "O+", "O-"],
+  "A-": ["A-", "O-"],
+  "B+": ["B+", "B-", "O+", "O-"],
+  "B-": ["B-", "O-"],
+  "O+": ["O+", "O-"],
+  "O-": ["O-"],
   "AB+": ["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"],
   "AB-": ["A-", "B-", "O-", "AB-"],
 };
 
 const BLOOD_GROUP_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-  "A+":  { bg: "#fef2f2", text: "#dc2626", border: "#fecaca" },
-  "A-":  { bg: "#fff1f2", text: "#e11d48", border: "#fda4af" },
-  "B+":  { bg: "#eff6ff", text: "#2563eb", border: "#bfdbfe" },
-  "B-":  { bg: "#eef2ff", text: "#4338ca", border: "#c7d2fe" },
-  "O+":  { bg: "#f0fdf4", text: "#16a34a", border: "#86efac" },
-  "O-":  { bg: "#ecfdf5", text: "#059669", border: "#6ee7b7" },
+  "A+": { bg: "#fef2f2", text: "#dc2626", border: "#fecaca" },
+  "A-": { bg: "#fff1f2", text: "#e11d48", border: "#fda4af" },
+  "B+": { bg: "#eff6ff", text: "#2563eb", border: "#bfdbfe" },
+  "B-": { bg: "#eef2ff", text: "#4338ca", border: "#c7d2fe" },
+  "O+": { bg: "#f0fdf4", text: "#16a34a", border: "#86efac" },
+  "O-": { bg: "#ecfdf5", text: "#059669", border: "#6ee7b7" },
   "AB+": { bg: "#fdf4ff", text: "#9333ea", border: "#e9d5ff" },
   "AB-": { bg: "#faf5ff", text: "#7c3aed", border: "#ddd6fe" },
 };
@@ -167,14 +167,14 @@ export default function BloodBanksScreen() {
       // Fetch users who have blood group set and are available
       const baseQuery = showOnlyAvailable
         ? query(
-            collection(db, "users"),
-            where("isAvailableToDonate", "==", true),
-            where("bloodGroup", "!=", null)
-          )
+          collection(db, "users"),
+          where("isAvailableToDonate", "==", true),
+          where("bloodGroup", "!=", null)
+        )
         : query(
-            collection(db, "users"),
-            where("bloodGroup", "!=", null)
-          );
+          collection(db, "users"),
+          where("bloodGroup", "!=", null)
+        );
 
       const snap = await getDocs(baseQuery);
       const list: Donor[] = [];
@@ -283,7 +283,9 @@ export default function BloodBanksScreen() {
         body: `${nickname ?? "Someone"} needs ${selectedDonor.bloodGroup} blood and has requested your help.`,
         reportedBy: nickname ?? "Unknown",
         reportedByUid: uid,
-        targetUid: selectedDonor.uid,
+        requesterId: uid,
+        requesterName: nickname ?? "Unknown",
+        forUid: selectedDonor.uid,
         severity: "high",
         read: false,
         createdAt: serverTimestamp(),
@@ -311,8 +313,8 @@ export default function BloodBanksScreen() {
 
   const compatibleCount = myBloodGroup
     ? donors.filter((d) =>
-        (COMPATIBLE_DONORS[myBloodGroup] ?? []).includes(d.bloodGroup)
-      ).length
+      (COMPATIBLE_DONORS[myBloodGroup] ?? []).includes(d.bloodGroup)
+    ).length
     : 0;
 
   return (
@@ -370,8 +372,8 @@ export default function BloodBanksScreen() {
           {locationLoading
             ? "Getting your location..."
             : myLocation
-            ? "Sorted by distance from you"
-            : "Enable location for distance sorting"}
+              ? "Sorted by distance from you"
+              : "Enable location for distance sorting"}
         </Text>
 
         {/* My blood group pill */}
@@ -543,8 +545,8 @@ export default function BloodBanksScreen() {
             {selectedBloodGroup === "COMPATIBLE" && myBloodGroup
               ? ` · Compatible with ${myBloodGroup}`
               : selectedBloodGroup !== "ALL" && selectedBloodGroup !== "COMPATIBLE"
-              ? ` · Blood group ${selectedBloodGroup}`
-              : ""}
+                ? ` · Blood group ${selectedBloodGroup}`
+                : ""}
           </Text>
 
           {/* No blood group warning */}
