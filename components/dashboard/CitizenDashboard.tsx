@@ -58,6 +58,13 @@ const CITIZEN_FEATURES: Feature[] = [
     color: "#fdf4ff",
   },
   // {
+  //   icon: "💬",
+  //   name: "Messages",
+  //   desc: "Your chats",
+  //   route: "/(feat)/chat-list",
+  //   color: "#f0fdf4",
+  // },
+  // {
   //   icon: "🩸",
   //   name: "Donate",
   //   desc: "Register as donor",
