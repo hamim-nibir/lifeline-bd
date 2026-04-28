@@ -310,7 +310,7 @@ export default function BloodDonationHistoryScreen() {
 
       {/* ── Header ── */}
       <View style={{
-        backgroundColor: "#dc2626",
+        backgroundColor: "#f97316",
         paddingTop: 56, paddingBottom: 24, paddingHorizontal: 20,
       }}>
         <View style={{
@@ -341,9 +341,6 @@ export default function BloodDonationHistoryScreen() {
           </TouchableOpacity>
         </View>
 
-        <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 13 }}>
-          {nickname ?? "User"}
-        </Text>
         <Text style={{ color: "#fff", fontSize: 24, fontWeight: "700", marginTop: 2 }}>
           Donation History
         </Text>
