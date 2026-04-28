@@ -114,15 +114,16 @@ export default function ChatListScreen() {
           flexDirection: "row", justifyContent: "space-between",
           alignItems: "center",
         }}>
-          <TouchableOpacity onPress={() => router.replace("/dashboard")}>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <Text style={{ color: "#fff", fontSize: 18, fontWeight: "700" }}>←</Text>
-            </View>
+          <TouchableOpacity
+            onPress={() => router.replace("/dashboard")}
+            style={{
+              backgroundColor: "rgba(255,255,255,0.2)", width: 36, height: 36,
+              borderRadius: 18, alignItems: "center", justifyContent: "center",
+            }}
+          >
+            <Text style={{ color: "#fff", fontSize: 18, fontWeight: "700" }}>←</Text>
           </TouchableOpacity>
           <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 13 }}>
-              {nickname ?? ""}
-            </Text>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 2 }}>
               <Text style={{ color: "#fff", fontSize: 22, fontWeight: "700" }}>
                 Messages

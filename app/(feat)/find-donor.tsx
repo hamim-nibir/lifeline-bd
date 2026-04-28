@@ -322,7 +322,7 @@ export default function BloodBanksScreen() {
 
       {/* ── Header ── */}
       <View style={{
-        backgroundColor: "#dc2626",
+        backgroundColor: "#f97316",
         paddingTop: 56, paddingBottom: 20, paddingHorizontal: 20,
       }}>
         <View style={{
