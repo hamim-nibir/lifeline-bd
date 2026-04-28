@@ -55,10 +55,10 @@ export default function TabLayout() {
           }}
         />
         <Tabs.Screen
-          name="search"
+          name="messages"
           options={{
             tabBarIcon: ({ focused }) => (
-              <TabIcon focused={focused} icon="🔍" label="Search" />
+              <TabIcon focused={focused} icon="💬" label="Messages" />
             ),
           }}
         />
@@ -66,7 +66,7 @@ export default function TabLayout() {
           name="notifications"
           options={{
             tabBarIcon: ({ focused }) => (
-              <TabIcon focused={focused} icon="🔔" label="Alerts" />
+              <TabIcon focused={focused} icon="🔔" label="Notifications" />
             ),
           }}
         />
