@@ -65,3 +65,15 @@ export interface EmergencyContact {
   whatsapp: string;
   facebook: string;
 }
+
+export interface PoliceReport {
+  id?: string;
+  uid: string;
+  type: "theft" | "harassment" | "violence" | "missing" | "accident" | "suspicious" | "other";
+  description: string;
+  location: { latitude: number; longitude: number };
+  evidenceUrls: string[];
+  status: "pending" | "acknowledged" | "resolved";
+  isSOS: boolean;
+  createdAt?: any;
+}

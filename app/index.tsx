@@ -19,7 +19,7 @@ export default function LandingScreen() {
 
   return (
     <View className="flex-1 bg-white">
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
 
       {/* Top bar with Login button */}
       <View className="absolute top-0 left-0 right-0 z-10 flex-row justify-between items-center px-6 pt-14 pb-4">
