@@ -1,17 +1,36 @@
 import { Tabs, useRouter } from "expo-router";
-import { View, Text } from "react-native";
-import WelcomeBanner from "../../components/ui/WelcomeBanner";
+import { View, Text, Image } from "react-native";
+import { ImageSourcePropType } from "react-native";
+//import WelcomeBanner from "../../components/ui/WelcomeBanner";
 
-type TabIconProps = { focused: boolean; icon: string; label: string };
+type TabIconProps = { focused: boolean; icon: string | ImageSourcePropType; label: string };
 
 function TabIcon({ focused, icon, label }: TabIconProps) {
   return (
     <View style={{ alignItems: "center", justifyContent: "center", marginTop: 8, width: 70, }}>
-      <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.4 }}>{icon}</Text>
+      {/* 👇 Detect if icon is image or text */}
+      {typeof icon === "string" ? (
+        <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.4 }}>
+          {icon}
+        </Text>
+      ) : (
+        <Image
+          source={icon as any}
+          style={{
+            width: 24,
+            height: 24,
+            opacity: focused ? 1 : 0.4,
+            tintColor: focused ? "#c4451a" : "#9ca3af",
+          }}
+          resizeMode="contain"
+        />
+      )}
+      
+      {/*<Text style={{ fontSize: 20, opacity: focused ? 1 : 0.4 }}>{icon}</Text>*/}
       <Text style={{
         fontSize: 10,
         fontWeight: "600",
-        color: focused ? "#f97316" : "#9ca3af",
+        color: focused ? "#c4451a" : "#9ca3af",
         marginTop: 2,
       }}>
         {label}
@@ -23,7 +42,7 @@ function TabIcon({ focused, icon, label }: TabIconProps) {
 export default function TabLayout() {
   return (
     <View style={{ flex: 1 }}>
-      <WelcomeBanner />
+      {/*<WelcomeBanner />*/}
       <Tabs
         screenOptions={{
           headerShown: false,
@@ -42,7 +61,47 @@ export default function TabLayout() {
           name="index"
           options={{
             tabBarIcon: ({ focused }) => (
-              <TabIcon focused={focused} icon="🏠" label="Home" />
+              <TabIcon focused={focused} icon={require('../../assets/home.png')} label="Home"/> /*icon="🏠" label="Home"*/
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="Services"
+          options={{
+            tabBarIcon: ({ focused }) => (
+              <TabIcon focused={focused} icon={require('../../assets/service.png')} label="Services" />/*icon="📊"*/
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="report"
+          options={{
+            tabBarIcon: ({ focused }) => (
+              <TabIcon focused={focused} icon={require('../../assets/Report.png')} label="Report" />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="disaster"
+          options={{
+            tabBarIcon: ({ focused }) => (
+              <TabIcon focused={focused} icon={require('../../assets/disaster.png')} label="Disaster" />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="community"
+          options={{
+            tabBarIcon: ({ focused }) => (
+              <TabIcon focused={focused} icon={require('../../assets/community.png')} label="Community" />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="profile"
+          options={{
+            tabBarIcon: ({ focused }) => (
+              <TabIcon focused={focused} icon="👤" label="Profile" />
             ),
           }}
         />
@@ -54,6 +113,7 @@ export default function TabLayout() {
             ),
           }}
         />
+        
         <Tabs.Screen
           name="search"
           options={{
@@ -70,15 +130,9 @@ export default function TabLayout() {
             ),
           }}
         />
-        <Tabs.Screen
-          name="profile"
-          options={{
-            tabBarIcon: ({ focused }) => (
-              <TabIcon focused={focused} icon="👤" label="Profile" />
-            ),
-          }}
-        />
+          
       </Tabs>
     </View>
+    
   );
 }
