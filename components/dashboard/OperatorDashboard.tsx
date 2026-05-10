@@ -20,7 +20,10 @@ type Feature = {
 
 const OPERATOR_FEATURES: Feature[] = [
   { icon: "🔔", name: "Panic Alerts", desc: "View notifications", route: "/(feat)/operator-panic-alerts", color: "#fef2f2" },
+  { icon: "🚔", name: "Police Reports", desc: "View police alerts", route: "/(feat)/operator-police-reports", color: "#f0f9ff" },
   { icon: "📋", name: "Accident Reports", desc: "Review reports", route: "/(feat)/operator-accident-reports", color: "#fff7ed" },
+  { icon: "⚡", name: "Unified Requests", desc: "View unified emergency requests", route: "/(feat)/operator-unified-requests", color: "#fefce8" },
+  
   {
   icon: "🪪",
   name: "Verifications",
@@ -35,6 +38,7 @@ const OPERATOR_FEATURES: Feature[] = [
   { icon: "📢", name: "Broadcast", desc: "Send alerts", route: "/(feat)/broadcast", color: "#fff7ed" },
   { icon: "🗺️", name: "Live Map", desc: "Track incidents", route: "/(feat)/live-map", color: "#f0fdf4" },
   { icon: "⚙️", name: "Settings", desc: "System config", route: "/(feat)/settings", color: "#f8fafc" },
+  { icon: "💬", name: "Citizen Chats", desc: "Reply to citizen messages", route: "/(feat)/operator-chat-list", color: "#f0fdf4" },
 ];
 
 export default function OperatorDashboard() {

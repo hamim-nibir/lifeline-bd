@@ -65,19 +65,22 @@ export default function TabLayout() {
             ),
           }}
         />
+        
+        
         <Tabs.Screen
-          name="Services"
+          name="dashboard"
           options={{
             tabBarIcon: ({ focused }) => (
-              <TabIcon focused={focused} icon={require('../../assets/service.png')} label="Services" />/*icon="📊"*/
+              <TabIcon focused={focused} icon="📊" label="Services" />
             ),
           }}
         />
+
         <Tabs.Screen
           name="report"
           options={{
             tabBarIcon: ({ focused }) => (
-              <TabIcon focused={focused} icon={require('../../assets/Report.png')} label="Report" />
+              <TabIcon focused={focused} icon="📋" label="Report" />
             ),
           }}
         />
@@ -85,7 +88,7 @@ export default function TabLayout() {
           name="disaster"
           options={{
             tabBarIcon: ({ focused }) => (
-              <TabIcon focused={focused} icon={require('../../assets/disaster.png')} label="Disaster" />
+              <TabIcon focused={focused} icon="⚠️" label="Disaster" />
             ),
           }}
         />
@@ -93,28 +96,40 @@ export default function TabLayout() {
           name="community"
           options={{
             tabBarIcon: ({ focused }) => (
-              <TabIcon focused={focused} icon={require('../../assets/community.png')} label="Community" />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="profile"
-          options={{
-            tabBarIcon: ({ focused }) => (
-              <TabIcon focused={focused} icon="👤" label="Profile" />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="dashboard"
-          options={{
-            tabBarIcon: ({ focused }) => (
-              <TabIcon focused={focused} icon="📊" label="Dashboard" />
+              <TabIcon focused={focused} icon="👥" label="Community" />
             ),
           }}
         />
         
         <Tabs.Screen
+          name="police"
+          options={{
+            href: null,
+          }}
+        
+        />
+
+        {/* Hidden — accessible but not in navbar */}
+        <Tabs.Screen name="profile"       options={{ href: null }} />
+        <Tabs.Screen name="Services"      options={{ href: null }} />
+        <Tabs.Screen name="search"        options={{ href: null }} />
+        <Tabs.Screen name="notifications" options={{ href: null }} />
+          
+      </Tabs>
+    </View>
+    
+  );
+}
+/*
+<Tabs.Screen
+          name="profile"
+          options={{
+            tabBarIcon: ({ focused }) => (
+              <TabIcon focused={focused} icon="👤" label="Profile" />
+            ),
+          }}/>
+
+          \<Tabs.Screen
           name="search"
           options={{
             tabBarIcon: ({ focused }) => (
@@ -130,9 +145,32 @@ export default function TabLayout() {
             ),
           }}
         />
-          
-      </Tabs>
-    </View>
-    
-  );
-}
+
+        */
+
+        /*
+        <Tabs.Screen
+  name="report"
+  options={{
+    tabBarIcon: ({ focused }) => (
+      <TabIcon focused={focused} icon="📋" label="Report" />
+    ),
+  }}
+/>
+<Tabs.Screen
+  name="disaster"
+  options={{
+    tabBarIcon: ({ focused }) => (
+      <TabIcon focused={focused} icon="⚠️" label="Disaster" />
+    ),
+  }}
+/>
+<Tabs.Screen
+  name="community"
+  options={{
+    tabBarIcon: ({ focused }) => (
+      <TabIcon focused={focused} icon="👥" label="Community" />
+    ),
+  }}
+/>
+        */ 
