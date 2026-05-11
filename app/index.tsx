@@ -8,6 +8,8 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { useLanguage } from "../contexts/LanguageContext";
+import LanguageSwitcher from "../components/ui/LanguageSwitcher";
 
 import Logo from "../components/ui/logo";
 
@@ -16,6 +18,7 @@ const { height } = Dimensions.get("window");
 
 export default function LandingScreen() {
   const router = useRouter();
+  const { t } = useLanguage();
 
   return (
     <View className="flex-1 bg-white">
@@ -24,12 +27,15 @@ export default function LandingScreen() {
       {/* Top bar with Login button */}
       <View className="absolute top-0 left-0 right-0 z-10 flex-row justify-between items-center px-6 pt-14 pb-4">
         <Logo onPress={() => router.push("/")} />
-        <TouchableOpacity
-          onPress={() => router.push("/(auth)/login")}
-          className="bg-white px-5 py-2 rounded-full"
-        >
-          <Text className="text-orange-600 font-semibold text-sm">Login</Text>
-        </TouchableOpacity>
+        <View className="flex-row items-center gap-2">
+          <LanguageSwitcher />
+          <TouchableOpacity
+            onPress={() => router.push("/(auth)/login")}
+            className="bg-white px-5 py-2 rounded-full"
+          >
+            <Text className="text-orange-600 font-semibold text-sm">{t("landing.login")}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Hero section */}
@@ -39,10 +45,10 @@ export default function LandingScreen() {
       >
         <Text className="text-white text-4xl font-bold text-center leading-tight"
         style={{marginTop:50}}>
-          Emergency Help
+          {t("landing.emergencyHelp")}
         </Text>
         <Text className="text-red-200 text-base text-center mt-4 leading-relaxed">
-          Get instant help in critical situations.{"\n"} Our emergency services are available 24/7.
+          {t("landing.heroSubtext")}
         </Text>
 
         <TouchableOpacity
@@ -50,7 +56,7 @@ export default function LandingScreen() {
           className="bg-white mt-8 px-10 py-4 rounded-2xl"
         >
           <Text className="text-orange-600 font-bold text-base">
-            Get Started
+            {t("landing.getStarted")}
           </Text>
         </TouchableOpacity>
       </View>
@@ -59,15 +65,15 @@ export default function LandingScreen() {
       <View className="flex-row mx-6 -mt-6">
         <View className="flex-1 bg-white rounded-2xl p-4 items-center mr-2 shadow-sm border border-gray-100">
           <Text className="text-orange-600 text-2xl font-bold">5mins</Text>
-          <Text className="text-gray-500 text-xs mt-1">Avg. Response</Text>
+          <Text className="text-gray-500 text-xs mt-1">{t("landing.avgResponse")}</Text>
         </View>
         <View className="flex-1 bg-white rounded-2xl p-4 items-center mx-2 shadow-sm border border-gray-100">
           <Text className="text-orange-600 text-2xl font-bold">24/7</Text>
-          <Text className="text-gray-500 text-xs mt-1">Coverage</Text>
+          <Text className="text-gray-500 text-xs mt-1">{t("landing.coverage")}</Text>
         </View>
         <View className="flex-1 bg-white rounded-2xl p-4 items-center ml-2 shadow-sm border border-gray-100">
           <Text className="text-orange-600 text-2xl font-bold">500+</Text>
-          <Text className="text-gray-500 text-xs mt-1">Active Volunteers</Text>
+          <Text className="text-gray-500 text-xs mt-1">{t("landing.activeVolunteers")}</Text>
         </View>
       </View>
 
@@ -120,7 +126,7 @@ export default function LandingScreen() {
           className="bg-orange-600 rounded-2xl py-4 items-center mt-2 mb-10"
         >
           <Text className="text-white font-bold text-base">
-            Create Free Account
+            {t("landing.createFreeAccount")}
           </Text>
         </TouchableOpacity>
       </ScrollView>

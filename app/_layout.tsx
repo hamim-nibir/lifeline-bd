@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { subscribeToAuthChanges, getUserProfile } from "../services/auth";
 import { useAuthStore } from "../store/authStore";
+import { LanguageProvider } from "../contexts/LanguageContext";
 
 export default function RootLayout() {
   const router = useRouter();
@@ -59,11 +60,13 @@ export default function RootLayout() {
   }, [user, isLoading, segments]);
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="index" />
-      <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="(auth)" />
-      <Stack.Screen name="(feat)" />
-    </Stack>
+    <LanguageProvider>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="(auth)" />
+        <Stack.Screen name="(feat)" />
+      </Stack>
+    </LanguageProvider>
   );
 }

@@ -1,18 +1,20 @@
 import { Tabs, useRouter } from "expo-router";
 import { View, Text } from "react-native";
 import WelcomeBanner from "../../components/ui/WelcomeBanner";
+import { useLanguage } from "../../contexts/LanguageContext";
 
 type TabIconProps = { focused: boolean; icon: string; label: string };
 
 function TabIcon({ focused, icon, label }: TabIconProps) {
   return (
-    <View style={{ alignItems: "center", justifyContent: "center", marginTop: 8, width: 70, }}>
+    <View style={{ alignItems: "center", justifyContent: "center", marginTop: 8, width: 58 }}>
       <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.4 }}>{icon}</Text>
       <Text style={{
-        fontSize: 10,
+        fontSize: 9,
         fontWeight: "600",
         color: focused ? "#f97316" : "#9ca3af",
         marginTop: 2,
+        textAlign: "center",
       }}>
         {label}
       </Text>
@@ -21,6 +23,8 @@ function TabIcon({ focused, icon, label }: TabIconProps) {
 }
 
 export default function TabLayout() {
+  const { t } = useLanguage();
+
   return (
     <View style={{ flex: 1 }}>
       <WelcomeBanner />
@@ -42,7 +46,7 @@ export default function TabLayout() {
           name="index"
           options={{
             tabBarIcon: ({ focused }) => (
-              <TabIcon focused={focused} icon="🏠" label="Home" />
+              <TabIcon focused={focused} icon="🏠" label={t("common.home")} />
             ),
           }}
         />
@@ -50,7 +54,7 @@ export default function TabLayout() {
           name="dashboard"
           options={{
             tabBarIcon: ({ focused }) => (
-              <TabIcon focused={focused} icon="📊" label="Dashboard" />
+              <TabIcon focused={focused} icon="📊" label={t("common.dashboard")} />
             ),
           }}
         />
@@ -58,7 +62,7 @@ export default function TabLayout() {
           name="search"
           options={{
             tabBarIcon: ({ focused }) => (
-              <TabIcon focused={focused} icon="🔍" label="Search" />
+              <TabIcon focused={focused} icon="🔍" label={t("common.search")} />
             ),
           }}
         />
@@ -66,7 +70,15 @@ export default function TabLayout() {
           name="notifications"
           options={{
             tabBarIcon: ({ focused }) => (
-              <TabIcon focused={focused} icon="🔔" label="Alerts" />
+              <TabIcon focused={focused} icon="🔔" label={t("common.alerts")} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="reporting"
+          options={{
+            tabBarIcon: ({ focused }) => (
+              <TabIcon focused={focused} icon="📝" label={t("common.reporting")} />
             ),
           }}
         />
@@ -74,7 +86,7 @@ export default function TabLayout() {
           name="profile"
           options={{
             tabBarIcon: ({ focused }) => (
-              <TabIcon focused={focused} icon="👤" label="Profile" />
+              <TabIcon focused={focused} icon="👤" label={t("common.profile")} />
             ),
           }}
         />

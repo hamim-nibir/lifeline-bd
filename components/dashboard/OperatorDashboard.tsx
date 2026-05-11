@@ -6,6 +6,8 @@ import { useRouter } from "expo-router";
 import { logoutUser } from "../../services/auth";
 import { useAuthStore } from "../../store/authStore";
 import Logo from "../../components/ui/logo";
+import { useLanguage } from "../../contexts/LanguageContext";
+import LanguageSwitcher from "../ui/LanguageSwitcher";
 
 const { width } = Dimensions.get("window");
 const CARD_SIZE = (width - 48 - 16) / 3;
@@ -40,6 +42,7 @@ const OPERATOR_FEATURES: Feature[] = [
 export default function OperatorDashboard() {
   const router = useRouter();
   const { nickname } = useAuthStore();
+  const { t } = useLanguage();
 
   const handleLogout = async () => {
     await logoutUser();
@@ -70,29 +73,32 @@ export default function OperatorDashboard() {
           <Logo onPress={() => router.push("/(tabs)")} />
 
           {/* Logout button */}
-          <TouchableOpacity
-            onPress={handleLogout}
-            style={{
-              backgroundColor: "rgba(255,255,255,0.2)",
-              paddingHorizontal: 14,
-              paddingVertical: 7,
-              borderRadius: 20,
-              borderWidth: 1,
-              borderColor: "rgba(255,255,255,0.35)",
-            }}
-          >
-            <Text style={{ color: "#fff", fontSize: 13, fontWeight: "600" }}>
-              Logout
-            </Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <LanguageSwitcher />
+            <TouchableOpacity
+              onPress={handleLogout}
+              style={{
+                backgroundColor: "rgba(255,255,255,0.2)",
+                paddingHorizontal: 14,
+                paddingVertical: 7,
+                borderRadius: 20,
+                borderWidth: 1,
+                borderColor: "rgba(255,255,255,0.35)",
+              }}
+            >
+              <Text style={{ color: "#fff", fontSize: 13, fontWeight: "600" }}>
+                {t("common.logout")}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Dashboard title */}
         <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 13, fontWeight: "500" }}>
-          Welcome back, {nickname ?? "User"}
+          {t("dashboard.welcomeBack", { name: nickname ?? t("common.userFallback") })}
         </Text>
         <Text style={{ color: "#fff", fontSize: 24, fontWeight: "700", marginTop: 2 }}>
-          Operator Dashboard
+          {t("dashboard.operatorTitle")}
         </Text>
       </View>
 
@@ -102,7 +108,7 @@ export default function OperatorDashboard() {
         showsVerticalScrollIndicator={false}
       >
         <Text style={{ color: "#374151", fontSize: 16, fontWeight: "700", marginBottom: 12, marginTop: 4 }}>
-          Management Tools
+          {t("dashboard.managementTools")}
         </Text>
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
           {OPERATOR_FEATURES.map((feature, index) => (

@@ -1,5 +1,6 @@
 import { View, Text, TouchableOpacity, Modal } from "react-native";
 import { useRouter } from "expo-router";
+import { useLanguage } from "../../contexts/LanguageContext";
 
 type Props = {
   visible: boolean;
@@ -9,6 +10,7 @@ type Props = {
 
 export default function VerificationGuard({ visible, onClose, featureName }: Props) {
   const router = useRouter();
+  const { t } = useLanguage();
 
   return (
     <Modal
@@ -37,18 +39,19 @@ export default function VerificationGuard({ visible, onClose, featureName }: Pro
             fontSize: 18, fontWeight: "700",
             color: "#1f2937", textAlign: "center", marginBottom: 8,
           }}>
-            Verification Required
+            {t("verification.required")}
           </Text>
 
           <Text style={{
             fontSize: 14, color: "#6b7280",
             textAlign: "center", lineHeight: 22, marginBottom: 24,
           }}>
-            You need a verified account to use{" "}
+            {t("verification.needVerifiedAccount")}{" "}
             <Text style={{ fontWeight: "700", color: "#f97316" }}>
               {featureName}
             </Text>
-            .{"\n"}Please verify your identity first.
+            .{"\n"}
+            {t("verification.verifyFirst")}
           </Text>
 
           {/* Go to profile button */}
@@ -68,7 +71,7 @@ export default function VerificationGuard({ visible, onClose, featureName }: Pro
             }}
           >
             <Text style={{ color: "#fff", fontWeight: "700", fontSize: 15 }}>
-              Verify My Account
+              {t("verification.verifyAccount")}
             </Text>
           </TouchableOpacity>
 
@@ -83,7 +86,7 @@ export default function VerificationGuard({ visible, onClose, featureName }: Pro
             }}
           >
             <Text style={{ color: "#9ca3af", fontSize: 14 }}>
-              Maybe Later
+              {t("verification.maybeLater")}
             </Text>
           </TouchableOpacity>
         </View>

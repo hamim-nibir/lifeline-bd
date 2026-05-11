@@ -1,13 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Animated, Text, TouchableOpacity, View } from "react-native";
 import { useAuthStore } from "../../store/authStore";
-import { AccountType } from "../../types";
-
-const ACCOUNT_LABELS: Record<AccountType, string> = {
-  operator: "Operator",
-  volunteer: "Volunteer",
-  citizen: "Citizen",
-};
+import { useLanguage } from "../../contexts/LanguageContext";
 
 const ACCOUNT_COLORS: Record<AccountType, string> = {
   operator: "bg-purple-600",
@@ -17,6 +11,7 @@ const ACCOUNT_COLORS: Record<AccountType, string> = {
 
 export default function WelcomeBanner() {
   const { showWelcome, setShowWelcome, nickname, accountType } = useAuthStore();
+  const { t } = useLanguage();
   const slideAnim = useRef(new Animated.Value(-120)).current;
 
   useEffect(() => {
@@ -56,10 +51,10 @@ export default function WelcomeBanner() {
       <View className={`${ACCOUNT_COLORS[accountType]} mx-4 mt-14 rounded-2xl px-5 py-4 flex-row items-center shadow-lg`}>
         <View className="flex-1">
           <Text className="text-white font-bold text-base">
-            Welcome, {nickname}! 👋
+            {t("banner.welcome", { name: nickname })}
           </Text>
           <Text className="text-white opacity-80 text-sm mt-0.5">
-            Logged in as {ACCOUNT_LABELS[accountType]}
+            {t("banner.loggedInAs", { role: t(`banner.${accountType}`) })}
           </Text>
         </View>
         <TouchableOpacity

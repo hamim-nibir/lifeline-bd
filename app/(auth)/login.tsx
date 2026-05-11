@@ -15,14 +15,11 @@ import { AccountType } from "../../types";
 import { useRouter } from "expo-router";
 import Logo from "../../components/ui/logo";
 import { Ionicons } from "@expo/vector-icons";
-
-const ACCOUNT_TYPES: { value: AccountType; label: string; desc: string }[] = [
-  { value: "operator", label: "Operator", desc: "Manage and oversee operations" },
-  { value: "volunteer", label: "Volunteer", desc: "Help and support donors" },
-  { value: "citizen", label: "Citizen", desc: "Donate or request blood" },
-];
+import { useLanguage } from "../../contexts/LanguageContext";
+import LanguageSwitcher from "../../components/ui/LanguageSwitcher";
 
 export default function AuthScreen() {
+  const { t } = useLanguage();
   const [isLogin, setIsLogin] = useState(true);
   const [name, setName] = useState("");
   const [nickname, setNickname] = useState("");
@@ -123,25 +120,28 @@ export default function AuthScreen() {
         <View className="bg-orange-600 px-6 pt-14 pb-10">
           <View className="flex-row justify-between items-center mb-4">
             <Logo onPress={() => router.push("/")} />
-            <TouchableOpacity
-              onPress={() => router.replace("/")}
-              style={{
-                backgroundColor: "rgba(255,255,255,0.2)",
-                paddingHorizontal: 14,
-                paddingVertical: 7,
-                borderRadius: 20,
-                borderWidth: 1,
-                borderColor: "rgba(255,255,255,0.35)",
-              }}
-            >
-              <Text className="text-white text-sm font-semibold">🏠 Home</Text>
-            </TouchableOpacity>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <LanguageSwitcher />
+              <TouchableOpacity
+                onPress={() => router.replace("/")}
+                style={{
+                  backgroundColor: "rgba(255,255,255,0.2)",
+                  paddingHorizontal: 14,
+                  paddingVertical: 7,
+                  borderRadius: 20,
+                  borderWidth: 1,
+                  borderColor: "rgba(255,255,255,0.35)",
+                }}
+              >
+                <Text className="text-white text-sm font-semibold">{t("auth.home")}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
           <Text className="text-orange-200 text-sm mt-1">
-            Welcome to Lifeline BD
+            {t("auth.welcome")}
           </Text>
           <Text className="text-white text-2xl font-bold mt-1">
-            Your Emergency Helpline
+            {t("auth.title")}
           </Text>
         </View>
 
@@ -152,7 +152,7 @@ export default function AuthScreen() {
             className={`flex-1 py-3 rounded-xl items-center ${isLogin ? "bg-white shadow-sm" : ""}`}
           >
             <Text className={`font-semibold text-sm ${isLogin ? "text-orange-600" : "text-gray-400"}`}>
-              Sign In
+              {t("auth.signIn")}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -160,7 +160,7 @@ export default function AuthScreen() {
             className={`flex-1 py-3 rounded-xl items-center ${!isLogin ? "bg-white shadow-sm" : ""}`}
           >
             <Text className={`font-semibold text-sm ${!isLogin ? "text-orange-600" : "text-gray-400"}`}>
-              Register
+              {t("auth.register")}
             </Text>
           </TouchableOpacity>
         </View>
@@ -312,7 +312,11 @@ export default function AuthScreen() {
                 <Text className="text-gray-600 text-sm font-medium mb-3">
                   Account Type
                 </Text>
-                {ACCOUNT_TYPES.map((type) => (
+                {[
+                  { value: "operator" as const, label: t("banner.operator"), desc: "Manage and oversee operations" },
+                  { value: "volunteer" as const, label: t("banner.volunteer"), desc: "Help and support donors" },
+                  { value: "citizen" as const, label: t("banner.citizen"), desc: "Donate or request blood" },
+                ].map((type) => (
                   <TouchableOpacity
                     key={type.value}
                     onPress={() => setAccountType(type.value)}
@@ -372,7 +376,7 @@ export default function AuthScreen() {
               <ActivityIndicator color="#ffffff" />
             ) : (
               <Text className="text-white font-bold text-base">
-                {isLogin ? "Sign In" : "Create Account"}
+                {isLogin ? t("auth.signIn") : t("auth.createAccount")}
               </Text>
             )}
           </TouchableOpacity>
@@ -380,11 +384,11 @@ export default function AuthScreen() {
           {/* Switch hint */}
           <View className="flex-row justify-center mt-6 mb-10">
             <Text className="text-gray-400 text-sm">
-              {isLogin ? "Don't have an account? " : "Already have an account? "}
+              {isLogin ? `${t("auth.noAccount")} ` : `${t("auth.alreadyHaveAccount")} `}
             </Text>
             <TouchableOpacity onPress={() => switchTab(!isLogin)}>
               <Text className="text-orange-600 text-sm font-semibold">
-                {isLogin ? "Register" : "Sign In"}
+                {isLogin ? t("auth.register") : t("auth.signIn")}
               </Text>
             </TouchableOpacity>
           </View>

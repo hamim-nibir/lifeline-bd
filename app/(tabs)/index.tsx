@@ -3,12 +3,15 @@ import { useRouter } from "expo-router";
 import { useAuthStore } from "../../store/authStore";
 import { logoutUser } from "../../services/auth";
 import { StatusBar } from "expo-status-bar";
+import { useLanguage } from "../../contexts/LanguageContext";
+import LanguageSwitcher from "../../components/ui/LanguageSwitcher";
 
 import Logo from "../../components/ui/logo";
 
 export default function HomeScreen() {
   const router = useRouter();
   const { nickname, accountType } = useAuthStore();
+  const { t } = useLanguage();
 
   const handleLogout = async () => {
     await logoutUser();
@@ -49,17 +52,18 @@ export default function HomeScreen() {
             }}
           >
             <Text style={{ color: "#fff", fontSize: 13, fontWeight: "600" }}>
-              Logout
+              {t("common.logout")}
             </Text>
           </TouchableOpacity>
+          <LanguageSwitcher />
         </View>
 
         {/* Dashboard title */}
         <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 13, fontWeight: "500" }}>
-          Welcome back, {nickname ?? "User"}
+          {t("dashboard.welcomeBack", { name: nickname ?? t("common.userFallback") })}
         </Text>
         <Text style={{ color: "#fff", fontSize: 24, fontWeight: "700", marginTop: 2 }}>
-          Home
+          {t("dashboard.homeTitle")}
         </Text>
       </View>
 
@@ -74,7 +78,7 @@ export default function HomeScreen() {
           borderColor: "#f3f4f6",
         }}>
           <Text style={{ color: "#374151", fontSize: 16, fontWeight: "700" }}>
-            Hello, {nickname ?? "User"} 👋
+            {t("dashboard.welcomeBack", { name: nickname ?? t("common.userFallback") })} 👋
           </Text>
           <Text style={{ color: "#9ca3af", fontSize: 13, marginTop: 4 }}>
             You are logged in as{" "}
@@ -96,7 +100,7 @@ export default function HomeScreen() {
           }}
         >
           <Text style={{ color: "#fff", fontWeight: "700", fontSize: 15 }}>
-            Go to My Dashboard →
+            {t("dashboard.goToDashboard")}
           </Text>
         </TouchableOpacity>
 
@@ -108,7 +112,7 @@ export default function HomeScreen() {
           alignItems: "center",
         }}>
           <Text style={{ color: "#9ca3af", fontSize: 13 }}>
-            🏗️ Home page is being designed
+            {t("dashboard.homeDesigning")}
           </Text>
         </View>
       </View>

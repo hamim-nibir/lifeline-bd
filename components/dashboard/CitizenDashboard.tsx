@@ -9,14 +9,16 @@ import { useRouter } from "expo-router";
 import { logoutUser } from "../../services/auth";
 import { useAuthStore } from "../../store/authStore";
 import Logo from "../../components/ui/logo";
+import { useLanguage } from "../../contexts/LanguageContext";
+import LanguageSwitcher from "../ui/LanguageSwitcher";
 
 const { width } = Dimensions.get("window");
 const CARD_SIZE = (width - 48 - 1) / 3;
 
 type Feature = {
   icon: string;
-  name: string;
-  desc: string;
+  nameKey: string;
+  descKey: string;
   route: string;
   color: string;
 };
@@ -24,64 +26,71 @@ type Feature = {
 const CITIZEN_FEATURES: Feature[] = [
   {
     icon: "🔔",
-    name: "Safety Panic Mode",
-    desc: "Urgent response",
+    nameKey: "citizenFeatures.safetyPanicMode",
+    descKey: "citizenFeatures.safetyPanicModeDesc",
     route: "/(feat)/women-safety",
     color: "#fff7ed",
   },
   {
     icon: "⚠️",
-    name: "Accident",
-    desc: "Urgent report",
+    nameKey: "citizenFeatures.accident",
+    descKey: "citizenFeatures.accidentDesc",
     route: "/(feat)/accident-report",
     color: "#f0fdf4",
   },
   {
     icon: "🔍",
-    name: "Find Donor",
-    desc: "Search nearby",
+    nameKey: "citizenFeatures.findDonor",
+    descKey: "citizenFeatures.findDonorDesc",
     route: "/find-donor",
     color: "#f0fdf4",
   },
   {
     icon: "📋",
-    name: "My History",
-    desc: "Past donations",
+    nameKey: "citizenFeatures.myHistory",
+    descKey: "citizenFeatures.myHistoryDesc",
     route: "/history",
     color: "#eff6ff",
   },
   {
     icon: "🗺️",
-    name: "Blood Banks",
-    desc: "Nearby banks",
+    nameKey: "citizenFeatures.bloodBanks",
+    descKey: "citizenFeatures.bloodBanksDesc",
     route: "/blood-banks",
     color: "#fdf4ff",
   },
   {
     icon: "🩸",
-    name: "Donate",
-    desc: "Register as donor",
+    nameKey: "citizenFeatures.donate",
+    descKey: "citizenFeatures.donateDesc",
     route: "/donate",
     color: "#fef2f2",
   },
   {
     icon: "📞",
-    name: "Emergency",
-    desc: "Quick contact",
-    route: "/emergency",
+    nameKey: "citizenFeatures.emergency",
+    descKey: "citizenFeatures.emergencyDesc",
+    route: "/(feat)/emergency",
     color: "#fef2f2",
   },
   {
+    icon: "🌪️",
+    nameKey: "citizenFeatures.disasterAlerts",
+    descKey: "citizenFeatures.disasterAlertsDesc",
+    route: "/(feat)/disaster-alerts",
+    color: "#ecfeff",
+  },
+  {
     icon: "📊",
-    name: "Statistics",
-    desc: "Blood data",
+    nameKey: "citizenFeatures.statistics",
+    descKey: "citizenFeatures.statisticsDesc",
     route: "/statistics",
     color: "#f0fdf4",
   },
   {
     icon: "⚙️",
-    name: "Settings",
-    desc: "My account",
+    nameKey: "citizenFeatures.settings",
+    descKey: "citizenFeatures.settingsDesc",
     route: "/settings",
     color: "#f8fafc",
   },
@@ -90,6 +99,7 @@ const CITIZEN_FEATURES: Feature[] = [
 export default function CitizenDashboard() {
   const router = useRouter();
   const { nickname } = useAuthStore();
+  const { t } = useLanguage();
 
   const handleLogout = async () => {
     await logoutUser();
@@ -120,30 +130,32 @@ export default function CitizenDashboard() {
           {/* Logo — clickable → home */}
           <Logo onPress={() => router.push("/(tabs)")} />
 
-          {/* Logout button */}
-          <TouchableOpacity
-            onPress={handleLogout}
-            style={{
-              backgroundColor: "rgba(255,255,255,0.2)",
-              paddingHorizontal: 14,
-              paddingVertical: 7,
-              borderRadius: 20,
-              borderWidth: 1,
-              borderColor: "rgba(255,255,255,0.35)",
-            }}
-          >
-            <Text style={{ color: "#fff", fontSize: 13, fontWeight: "600" }}>
-              Logout
-            </Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <LanguageSwitcher />
+            <TouchableOpacity
+              onPress={handleLogout}
+              style={{
+                backgroundColor: "rgba(255,255,255,0.2)",
+                paddingHorizontal: 14,
+                paddingVertical: 7,
+                borderRadius: 20,
+                borderWidth: 1,
+                borderColor: "rgba(255,255,255,0.35)",
+              }}
+            >
+              <Text style={{ color: "#fff", fontSize: 13, fontWeight: "600" }}>
+                {t("common.logout")}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Dashboard title */}
         <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 13, fontWeight: "500" }}>
-          Welcome back, {nickname ?? "User"}
+          {t("dashboard.welcomeBack", { name: nickname ?? t("common.userFallback") })}
         </Text>
         <Text style={{ color: "#fff", fontSize: 24, fontWeight: "700", marginTop: 2 }}>
-          Citizen Dashboard
+          {t("dashboard.citizenTitle")}
         </Text>
       </View>
 
@@ -161,7 +173,7 @@ export default function CitizenDashboard() {
           marginBottom: 12,
           marginTop: 4,
         }}>
-          Features
+          {t("dashboard.features")}
         </Text>
 
         {/* 3x3 Feature grid */}
@@ -195,7 +207,7 @@ export default function CitizenDashboard() {
                 textAlign: "center",
                 marginBottom: 3,
               }}>
-                {feature.name}
+                {t(feature.nameKey)}
               </Text>
               <Text style={{
                 color: "#9ca3af",
@@ -203,7 +215,7 @@ export default function CitizenDashboard() {
                 textAlign: "center",
                 lineHeight: 14,
               }}>
-                {feature.desc}
+                {t(feature.descKey)}
               </Text>
             </TouchableOpacity>
           ))}

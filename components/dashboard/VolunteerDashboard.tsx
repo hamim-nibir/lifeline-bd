@@ -5,6 +5,8 @@ import {
 import { useRouter } from "expo-router";
 import { logoutUser } from "../../services/auth";
 import { useAuthStore } from "../../store/authStore";
+import { useLanguage } from "../../contexts/LanguageContext";
+import LanguageSwitcher from "../ui/LanguageSwitcher";
 
 const { width } = Dimensions.get("window");
 const CARD_SIZE = (width - 48 - 16) / 3;
@@ -32,6 +34,7 @@ const VOLUNTEER_FEATURES: Feature[] = [
 export default function VolunteerDashboard() {
   const router = useRouter();
   const { nickname } = useAuthStore();
+  const { t } = useLanguage();
 
   const handleLogout = async () => {
     await logoutUser();
@@ -65,25 +68,28 @@ export default function VolunteerDashboard() {
               </Text>
             </View>
           </TouchableOpacity>
-          <TouchableOpacity
-            onPress={handleLogout}
-            style={{
-              backgroundColor: "rgba(255,255,255,0.2)",
-              paddingHorizontal: 14,
-              paddingVertical: 7,
-              borderRadius: 20,
-              borderWidth: 1,
-              borderColor: "rgba(255,255,255,0.35)",
-            }}
-          >
-            <Text style={{ color: "#fff", fontSize: 13, fontWeight: "600" }}>Logout</Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <LanguageSwitcher />
+            <TouchableOpacity
+              onPress={handleLogout}
+              style={{
+                backgroundColor: "rgba(255,255,255,0.2)",
+                paddingHorizontal: 14,
+                paddingVertical: 7,
+                borderRadius: 20,
+                borderWidth: 1,
+                borderColor: "rgba(255,255,255,0.35)",
+              }}
+            >
+              <Text style={{ color: "#fff", fontSize: 13, fontWeight: "600" }}>{t("common.logout")}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
         <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 13, fontWeight: "500" }}>
-          Welcome back, {nickname ?? "Volunteer"}
+          {t("dashboard.welcomeBack", { name: nickname ?? t("banner.volunteer") })}
         </Text>
         <Text style={{ color: "#fff", fontSize: 24, fontWeight: "700", marginTop: 2 }}>
-          Volunteer Dashboard
+          {t("dashboard.volunteerTitle")}
         </Text>
       </View>
 
@@ -93,7 +99,7 @@ export default function VolunteerDashboard() {
         showsVerticalScrollIndicator={false}
       >
         <Text style={{ color: "#374151", fontSize: 16, fontWeight: "700", marginBottom: 12, marginTop: 4 }}>
-          Your Tools
+          {t("dashboard.yourTools")}
         </Text>
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
           {VOLUNTEER_FEATURES.map((feature, index) => (

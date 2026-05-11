@@ -15,6 +15,7 @@ import {
   TrackingAccuracy, VerificationStatus,
 } from "../../types";
 import Logo from "../../components/ui/logo";
+import LanguageSwitcher from "../../components/ui/LanguageSwitcher";
 
 import { db } from "../../services/firebase";
 
@@ -239,22 +240,24 @@ export default function ProfileScreen() {
           {/* Logo — clickable → home */}
           <Logo onPress={() => router.push("/(tabs)")} />
 
-          {/* Logout button */}
-          <TouchableOpacity
-            onPress={handleLogout}
-            style={{
-              backgroundColor: "rgba(255,255,255,0.2)",
-              paddingHorizontal: 14,
-              paddingVertical: 7,
-              borderRadius: 20,
-              borderWidth: 1,
-              borderColor: "rgba(255,255,255,0.35)",
-            }}
-          >
-            <Text style={{ color: "#fff", fontSize: 13, fontWeight: "600" }}>
-              Logout
-            </Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <LanguageSwitcher />
+            <TouchableOpacity
+              onPress={handleLogout}
+              style={{
+                backgroundColor: "rgba(255,255,255,0.2)",
+                paddingHorizontal: 14,
+                paddingVertical: 7,
+                borderRadius: 20,
+                borderWidth: 1,
+                borderColor: "rgba(255,255,255,0.35)",
+              }}
+            >
+              <Text style={{ color: "#fff", fontSize: 13, fontWeight: "600" }}>
+                Logout
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Dashboard title */}
