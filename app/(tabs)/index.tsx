@@ -15,6 +15,7 @@ import * as Location from "expo-location";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { db } from "../../services/firebase";
 
+
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 const ALL_SERVICES = [
@@ -505,10 +506,6 @@ export default function HomeScreen() {
             <Text style={{ fontSize: 12 }}>📞</Text>
             <Text style={{ color: "#fff", fontSize: 13, fontWeight: "800", letterSpacing: 0.5 }}>999</Text>
           </TouchableOpacity>
-          {/* <TouchableOpacity onPress={() => router.push("/(tabs)/notifications" as any)}
-            style={{ padding: 4 }}>
-            <Text style={{ fontSize: 20 }}>🔔</Text>
-          </TouchableOpacity> */}
           <TouchableOpacity onPress={openSidebar} style={{ gap: 5, padding: 4 }}>
             <View style={{ width: 20, height: 2.5, backgroundColor: "rgba(255,255,255,0.85)", borderRadius: 2 }} />
             <View style={{ width: 14, height: 2.5, backgroundColor: "rgba(255,255,255,0.85)", borderRadius: 2 }} />
@@ -835,9 +832,7 @@ export default function HomeScreen() {
 
             {[
               { icon: "👤", label: "Profile",       bg: "#fdf0eb", onPress: () => { closeSidebar(); router.push("/(tabs)/profile" as any); } },
-              { icon: "🔔", label: "Notifications",  bg: "#fffbeb", onPress: () => { closeSidebar(); router.push("/(tabs)/notifications" as any); } },
               { icon: "📋", label: "History",        bg: "#f0f4ff", onPress: () => { closeSidebar(); router.push("/(feat)/history" as any); } },
-              { icon: "📊", label: "Dashboard",      bg: "#f0fdf4", onPress: () => { closeSidebar(); router.push("/(tabs)/dashboard" as any); } },
               { icon: "💬", label: "Chat with Operator", onPress: () => { closeSidebar(); router.push("/(feat)/chat" as any); } },
             ].map((item, i) => (
               <TouchableOpacity

@@ -1,14 +1,21 @@
-import { Tabs, useRouter } from "expo-router";
+import { Tabs } from "expo-router";
 import { View, Text, Image } from "react-native";
 import { ImageSourcePropType } from "react-native";
-//import WelcomeBanner from "../../components/ui/WelcomeBanner";
 
-type TabIconProps = { focused: boolean; icon: string | ImageSourcePropType; label: string };
+type TabIconProps = {
+  focused: boolean;
+  icon: string | ImageSourcePropType;
+  label: string;
+};
 
 function TabIcon({ focused, icon, label }: TabIconProps) {
   return (
-    <View style={{ alignItems: "center", justifyContent: "center", marginTop: 8, width: 70, }}>
-      {/* 👇 Detect if icon is image or text */}
+    <View style={{
+      alignItems: "center",
+      justifyContent: "center",
+      marginTop: 8,
+      width: 70,
+    }}>
       {typeof icon === "string" ? (
         <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.4 }}>
           {icon}
@@ -25,8 +32,6 @@ function TabIcon({ focused, icon, label }: TabIconProps) {
           resizeMode="contain"
         />
       )}
-      
-      {/*<Text style={{ fontSize: 20, opacity: focused ? 1 : 0.4 }}>{icon}</Text>*/}
       <Text style={{
         fontSize: 10,
         fontWeight: "600",
@@ -42,7 +47,6 @@ function TabIcon({ focused, icon, label }: TabIconProps) {
 export default function TabLayout() {
   return (
     <View style={{ flex: 1 }}>
-      {/*<WelcomeBanner />*/}
       <Tabs
         screenOptions={{
           headerShown: false,
@@ -57,11 +61,16 @@ export default function TabLayout() {
           },
         }}
       >
+        {/* Visible tabs */}
         <Tabs.Screen
           name="index"
           options={{
             tabBarIcon: ({ focused }) => (
-              <TabIcon focused={focused} icon={require('../../assets/home.png')} label="Home"/> /*icon="🏠" label="Home"*/
+              <TabIcon
+                focused={focused}
+                icon={require("../../assets/home.png")}
+                label="Home"
+              />
             ),
           }}
         />
@@ -74,8 +83,7 @@ export default function TabLayout() {
             ),
           }}
         />
-        
-        
+
         <Tabs.Screen
           name="dashboard"
           options={{
@@ -85,71 +93,20 @@ export default function TabLayout() {
           }}
         />
 
-        
-
-
-        {/* Hidden — accessible but not in navbar */}
-        <Tabs.Screen name="profile"       options={{ href: null }} />
-        <Tabs.Screen name="Services"      options={{ href: null }} />
-        <Tabs.Screen name="search"        options={{ href: null }} />
-        <Tabs.Screen name="notifications" options={{ href: null }} />
-          
-      </Tabs>
-    </View>
-    
-  );
-}
-/*
-<Tabs.Screen
-          name="profile"
-          options={{
-            tabBarIcon: ({ focused }) => (
-              <TabIcon focused={focused} icon="👤" label="Profile" />
-            ),
-          }}/>
-
-          \<Tabs.Screen
-          name="search"
-          options={{
-            tabBarIcon: ({ focused }) => (
-              <TabIcon focused={focused} icon="🔍" label="Search" />
-            ),
-          }}
-        />
         <Tabs.Screen
           name="notifications"
           options={{
             tabBarIcon: ({ focused }) => (
-              <TabIcon focused={focused} icon="🔔" label="Alerts" />
+              <TabIcon focused={focused} icon="🔔" label="Notifications" />
             ),
           }}
         />
 
-        */
-
-        /*
-        <Tabs.Screen
-  name="report"
-  options={{
-    tabBarIcon: ({ focused }) => (
-      <TabIcon focused={focused} icon="📋" label="Report" />
-    ),
-  }}
-/>
-<Tabs.Screen
-  name="disaster"
-  options={{
-    tabBarIcon: ({ focused }) => (
-      <TabIcon focused={focused} icon="⚠️" label="Disaster" />
-    ),
-  }}
-/>
-<Tabs.Screen
-  name="community"
-  options={{
-    tabBarIcon: ({ focused }) => (
-      <TabIcon focused={focused} icon="👥" label="Community" />
-    ),
-  }}
-/>
-        */ 
+        {/* Hidden — not shown in navbar */}
+        <Tabs.Screen name="profile"  options={{ href: null }} />
+        <Tabs.Screen name="police"   options={{ href: null }} />
+        <Tabs.Screen name="search"   options={{ href: null }} />
+      </Tabs>
+    </View>
+  );
+}
