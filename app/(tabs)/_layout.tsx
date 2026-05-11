@@ -65,6 +65,15 @@ export default function TabLayout() {
             ),
           }}
         />
+
+        <Tabs.Screen
+          name="report"
+          options={{
+            tabBarIcon: ({ focused }) => (
+              <TabIcon focused={focused} icon="📋" label="Report" />
+            ),
+          }}
+        />
         
         
         <Tabs.Screen
@@ -76,38 +85,8 @@ export default function TabLayout() {
           }}
         />
 
-        <Tabs.Screen
-          name="report"
-          options={{
-            tabBarIcon: ({ focused }) => (
-              <TabIcon focused={focused} icon="📋" label="Report" />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="disaster"
-          options={{
-            tabBarIcon: ({ focused }) => (
-              <TabIcon focused={focused} icon="⚠️" label="Disaster" />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="community"
-          options={{
-            tabBarIcon: ({ focused }) => (
-              <TabIcon focused={focused} icon="👥" label="Community" />
-            ),
-          }}
-        />
         
-        <Tabs.Screen
-          name="police"
-          options={{
-            href: null,
-          }}
-        
-        />
+
 
         {/* Hidden — accessible but not in navbar */}
         <Tabs.Screen name="profile"       options={{ href: null }} />

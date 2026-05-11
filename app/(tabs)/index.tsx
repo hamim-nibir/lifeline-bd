@@ -505,10 +505,10 @@ export default function HomeScreen() {
             <Text style={{ fontSize: 12 }}>📞</Text>
             <Text style={{ color: "#fff", fontSize: 13, fontWeight: "800", letterSpacing: 0.5 }}>999</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => router.push("/(tabs)/notifications" as any)}
+          {/* <TouchableOpacity onPress={() => router.push("/(tabs)/notifications" as any)}
             style={{ padding: 4 }}>
             <Text style={{ fontSize: 20 }}>🔔</Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
           <TouchableOpacity onPress={openSidebar} style={{ gap: 5, padding: 4 }}>
             <View style={{ width: 20, height: 2.5, backgroundColor: "rgba(255,255,255,0.85)", borderRadius: 2 }} />
             <View style={{ width: 14, height: 2.5, backgroundColor: "rgba(255,255,255,0.85)", borderRadius: 2 }} />
@@ -567,7 +567,7 @@ export default function HomeScreen() {
             </View>
 
             {/* Search icon */}
-            <TouchableOpacity
+            {/* <TouchableOpacity
               onPress={toggleSearch}
               style={{
                 width: 40, height: 40, borderRadius: 20,
@@ -579,7 +579,7 @@ export default function HomeScreen() {
               }}
             >
               <Text style={{ fontSize: 17 }}>🔍</Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </View>
 
           {/* Animated search bar */}
