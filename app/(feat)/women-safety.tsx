@@ -326,7 +326,7 @@ export default function WomenSafetyScreen() {
             {/* ── Scrollable Main Content ── */}
             <ScrollView
                 style={{ flex: 1 }}
-                contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+                contentContainerStyle={{ padding: 2, paddingBottom: 40 }}
                 showsVerticalScrollIndicator={false}
             >
                 {/* Hero */}
@@ -349,43 +349,33 @@ export default function WomenSafetyScreen() {
                 </View>
 
                 <View style={{ paddingHorizontal: 12 }}></View>
-                {/* Verification warning banner — shown only if not verified */}
-                {profile && profile.verificationStatus !== "verified" && (
-                    <View style={{
-                        backgroundColor: "#fff7ed",
-                        borderWidth: 1,
-                        borderColor: "#fed7aa",
-                        borderRadius: 12,
-                        padding: 12,
-                        marginBottom: 16,
-                        flexDirection: "row",
-                        alignItems: "center",
-                        gap: 10,
-                    }}>
-                        <Text style={{ fontSize: 18 }}>⚠️</Text>
-                        <View style={{ flex: 1 }}>
-                            <Text style={{ color: "#92400e", fontWeight: "700", fontSize: 13 }}>
-                                Account not verified
-                            </Text>
-                            <Text style={{ color: "#b45309", fontSize: 12, marginTop: 2 }}>
-                                Verify your account to activate panic mode
-                            </Text>
-                        </View>
-                        <TouchableOpacity
-                            onPress={() => router.push("/(tabs)/profile" as any)}
-                            style={{
-                                backgroundColor: "#f97316",
-                                borderRadius: 8,
-                                paddingHorizontal: 10,
-                                paddingVertical: 5,
-                            }}
-                        >
-                            <Text style={{ color: "#fff", fontSize: 11, fontWeight: "700" }}>
-                                Verify
-                            </Text>
-                        </TouchableOpacity>
-                    </View>
-                )}
+                {/* Verification warning */}
+          {profile && profile.verificationStatus !== "verified" && (
+            <View style={{
+              backgroundColor: "#fff7ed", borderWidth: 1, borderColor: "#fed7aa",
+              borderRadius: 12, padding: 12, marginBottom: 16,
+              flexDirection: "row", alignItems: "center", gap: 10,
+            }}>
+              <Text style={{ fontSize: 18 }}>⚠️</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: "#92400e", fontWeight: "700", fontSize: 13 }}>
+                  Account not verified
+                </Text>
+                <Text style={{ color: "#b45309", fontSize: 12, marginTop: 2 }}>
+                  Verify your account to activate urgent alert
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => router.push("/(tabs)/profile" as any)}
+                style={{
+                  backgroundColor: "#c4451a", borderRadius: 8,
+                  paddingHorizontal: 10, paddingVertical: 5,
+                }}
+              >
+                <Text style={{ color: "#fff", fontSize: 11, fontWeight: "700" }}>Verify</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
                 {/* Activate Button */}
                 <View style={{ alignItems: "center", marginBottom: 24 }}>
