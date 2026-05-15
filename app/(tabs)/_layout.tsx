@@ -105,7 +105,6 @@ export default function TabLayout() {
         {/* Hidden — not shown in navbar */}
         <Tabs.Screen name="profile"  options={{ href: null }} />
         <Tabs.Screen name="police"   options={{ href: null }} />
-        <Tabs.Screen name="search"   options={{ href: null }} />
       </Tabs>
     </View>
   );

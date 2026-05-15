@@ -9,13 +9,15 @@ import {
     TextInput,
     Linking,
     Modal,
+    Animated, Easing,
+    Dimensions,
 } from "react-native";
 import { useRouter } from "expo-router";
 import * as Location from "expo-location";
 import MapView, { Marker } from "react-native-maps";
 import { useAuthStore } from "../../store/authStore";
 import { db } from "../../services/firebase";
-import { getUserProfile } from "../../services/auth";
+import { getUserProfile, logoutUser } from "../../services/auth";
 import {
     doc,
     setDoc,
@@ -30,7 +32,7 @@ import {
 
 import VerificationGuard from "../../components/ui/VerificationGuard";
 import { useVerification } from "../../hooks/useVerification";
-import Logo from "../../components/ui/logo";
+import AppHeader from "../../components/featHeader";
 
 type Contact = {
     id: string;
@@ -39,6 +41,7 @@ type Contact = {
     whatsapp: string;
     facebook: string;
 };
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 const EMPTY_FORM = { name: "", phone: "", whatsapp: "", facebook: "" };
 
@@ -62,17 +65,53 @@ export default function WomenSafetyScreen() {
     const [modalVisible, setModalVisible] = useState(false);
     const [editingContact, setEditingContact] = useState<Contact | null>(null);
     const [form, setForm] = useState(EMPTY_FORM);
+    // ── Hooks ──
+    const headerAnim = useRef(new Animated.Value(0)).current;
+    const headerOpacity = useRef(new Animated.Value(1)).current;
+    const [sidebarVisible, setSidebarVisible] = useState(false);
+    const sidebarAnim = useRef(new Animated.Value(SCREEN_WIDTH)).current;
+
+    // ── Sidebar open/close ──
+    const openSidebar = () => {
+        setSidebarVisible(true);
+        Animated.timing(sidebarAnim, {
+            toValue: 0,
+            duration: 320,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: true,
+        }).start();
+    };
+
+    const closeSidebar = () => {
+        Animated.timing(sidebarAnim, {
+            toValue: SCREEN_WIDTH,
+            duration: 280,
+            easing: Easing.in(Easing.cubic),
+            useNativeDriver: true,
+        }).start(() => setSidebarVisible(false));
+    };
+
+    const handleLogout = async () => {
+        closeSidebar();
+        await logoutUser();
+        router.replace("/login");
+    };
+
+    const handleFeaturePress = (route: string) => {
+        router.push(route as any);
+    };
+
     const [savingContact, setSavingContact] = useState(false);
 
-        // verification
-        const [profile, setProfile] = useState<any>(null);
-        const { showGuard, setShowGuard, requireVerified } = useVerification();
-    
-        // ── Fetch profile to check verification status ──
-        useEffect(() => {
-            if (!uid) return;
-            getUserProfile(uid).then(setProfile).catch(console.error);
-        }, [uid]);
+    // verification
+    const [profile, setProfile] = useState<any>(null);
+    const { showGuard, setShowGuard, requireVerified } = useVerification();
+
+    // ── Fetch profile to check verification status ──
+    useEffect(() => {
+        if (!uid) return;
+        getUserProfile(uid).then(setProfile).catch(console.error);
+    }, [uid]);
 
     // ── Fetch location on mount ──
     useEffect(() => {
@@ -278,26 +317,11 @@ export default function WomenSafetyScreen() {
         <View style={{ flex: 1, backgroundColor: "#f9fafb" }}>
 
             {/* Header */}
-            <View style={{
-                backgroundColor: "#f97316", paddingTop: 56, paddingBottom: 20,
-                paddingHorizontal: 20, flexDirection: "row", alignItems: "center", gap: 14,
-            }}>
-                <TouchableOpacity
-                    onPress={() => router.back()}
-                    style={{
-                        backgroundColor: "rgba(255,255,255,0.2)", width: 36, height: 36,
-                        borderRadius: 18, alignItems: "center", justifyContent: "center",
-                    }}
-                >
-                    <Text style={{ color: "#fff", fontSize: 18, fontWeight: "700" }}>←</Text>
-                </TouchableOpacity>
-                <View>
-                    <Text style={{ color: "#fff", fontSize: 20, fontWeight: "700" }}>Safety Panic Mode</Text>
-                    <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: 12, marginTop: 1 }}>
-                        Activate panic mode to alert emergency services
-                    </Text>
-                </View>
-            </View>
+            <AppHeader
+                headerAnim={headerAnim}
+                headerOpacity={headerOpacity}
+                onOpenSidebar={openSidebar}
+            />
 
             {/* ── Scrollable Main Content ── */}
             <ScrollView
@@ -305,6 +329,26 @@ export default function WomenSafetyScreen() {
                 contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
                 showsVerticalScrollIndicator={false}
             >
+                {/* Hero */}
+                <View style={{
+                    backgroundColor: "#c4451a", margin: 12, borderRadius: 16, padding: 16,
+                }}>
+                    <View style={{
+                        width: 38, height: 38, borderRadius: 9,
+                        backgroundColor: "rgba(255,255,255,0.2)",
+                        alignItems: "center", justifyContent: "center", marginBottom: 8,
+                    }}>
+                        <Text style={{ fontSize: 18 }}>🛡️</Text>
+                    </View>
+                    <Text style={{ color: "#fff", fontSize: 20, fontWeight: "900", lineHeight: 24 }}>
+                        Women{"\n"}Safety Panic Mode
+                    </Text>
+                    <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: 11, marginTop: 4 }}>
+                        Activate in emergencies to notify your important contacts with your location.
+                    </Text>
+                </View>
+
+                <View style={{ paddingHorizontal: 12 }}></View>
                 {/* Verification warning banner — shown only if not verified */}
                 {profile && profile.verificationStatus !== "verified" && (
                     <View style={{
