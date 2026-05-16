@@ -16,7 +16,7 @@ import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { db } from "../../services/firebase";
 import AppHeader from "../../components/AppHeader";
 import EmergencyGrid from "../../components/features/EmergencyGrid";
-
+import Sidebar from "../../components/ui/Sidebar";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -96,7 +96,7 @@ export default function HomeScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [fetchingLocation, setFetchingLocation] = useState(false);
 
-  // ── Entrance animations ──
+  // Entrance animations
   const headerAnim = useRef(new Animated.Value(-40)).current;
   const headerOpacity = useRef(new Animated.Value(0)).current;
   const welcomeAnim = useRef(new Animated.Value(30)).current;
@@ -122,31 +122,26 @@ export default function HomeScreen() {
   const autoSlideRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    // Header
     Animated.parallel([
       Animated.timing(headerAnim, { toValue: 0, duration: 500, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
       Animated.timing(headerOpacity, { toValue: 1, duration: 500, useNativeDriver: true }),
     ]).start();
 
-    // Welcome card
     Animated.parallel([
       Animated.timing(welcomeAnim, { toValue: 0, duration: 480, delay: 180, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
       Animated.timing(welcomeOpacity, { toValue: 1, duration: 480, delay: 180, useNativeDriver: true }),
     ]).start();
 
-    // SOS button
     Animated.parallel([
       Animated.timing(sosAnim, { toValue: 0, duration: 480, delay: 360, easing: Easing.out(Easing.back(1.2)), useNativeDriver: true }),
       Animated.timing(sosOpacity, { toValue: 1, duration: 480, delay: 360, useNativeDriver: true }),
     ]).start();
 
-    // Services label
     Animated.parallel([
       Animated.timing(servicesAnim, { toValue: 0, duration: 400, delay: 480, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
       Animated.timing(servicesOpacity, { toValue: 1, duration: 400, delay: 480, useNativeDriver: true }),
     ]).start();
 
-    // Service cards stagger
     ALL_SERVICES.forEach((_, i) => {
       Animated.parallel([
         Animated.timing(cardAnims[i], { toValue: 0, duration: 440, delay: 560 + i * 90, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
@@ -155,7 +150,6 @@ export default function HomeScreen() {
       ]).start();
     });
 
-    // SOS pulse rings loop
     const runPulse = () => {
       pulse1.setValue(0);
       pulse2.setValue(0);
@@ -170,11 +164,6 @@ export default function HomeScreen() {
     return () => clearTimeout(timer);
   }, []);
 
-  // ── SOS press breathe ──
-  const handleSOSPressIn = () => Animated.spring(sosBtnScale, { toValue: 0.96, useNativeDriver: true, tension: 200, friction: 8 }).start();
-  const handleSOSPressOut = () => Animated.spring(sosBtnScale, { toValue: 1, useNativeDriver: true, tension: 200, friction: 8 }).start();
-
-  // ── Search bar ──
   const toggleSearch = () => {
     if (searchVisible) {
       Animated.timing(searchAnim, { toValue: 0, duration: 250, useNativeDriver: false }).start(() => {
@@ -187,11 +176,11 @@ export default function HomeScreen() {
     }
   };
 
-  // ── Sidebar ──
   const openSidebar = () => {
     setSidebarVisible(true);
     Animated.timing(sidebarAnim, { toValue: 0, duration: 320, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
   };
+
   const closeSidebar = () => {
     Animated.timing(sidebarAnim, { toValue: SCREEN_WIDTH, duration: 280, easing: Easing.in(Easing.cubic), useNativeDriver: true }).start(() => setSidebarVisible(false));
   };
@@ -227,7 +216,6 @@ export default function HomeScreen() {
     setCarouselLoading(true);
     const items: CarouselItem[] = [];
 
-    // Fetch weather
     try {
       const weatherRes = await fetch(
         `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${WEATHER_API_KEY}&units=metric`
@@ -251,7 +239,6 @@ export default function HomeScreen() {
       console.error("Weather fetch failed:", err);
     }
 
-    // Fetch news
     try {
       const newsRes = await fetch(
         `https://newsapi.org/v2/everything?q=accident+Bangladesh+emergency&language=en&sortBy=publishedAt&pageSize=5&apiKey=${NEWS_API_KEY}`
@@ -283,14 +270,11 @@ export default function HomeScreen() {
     setCarouselLoading(false);
   }, []);
 
-  // Auto slide
   const startAutoSlide = useCallback(() => {
     if (autoSlideRef.current) clearInterval(autoSlideRef.current);
     autoSlideRef.current = setInterval(() => {
       setCurrentIndex((prev) => {
-        const next = carouselItems.length > 0
-          ? (prev + 1) % carouselItems.length
-          : 0;
+        const next = carouselItems.length > 0 ? (prev + 1) % carouselItems.length : 0;
         flatListRef.current?.scrollToIndex({ index: next, animated: true });
         return next;
       });
@@ -298,12 +282,8 @@ export default function HomeScreen() {
   }, [carouselItems.length]);
 
   useEffect(() => {
-    if (carouselItems.length > 0) {
-      startAutoSlide();
-    }
-    return () => {
-      if (autoSlideRef.current) clearInterval(autoSlideRef.current);
-    };
+    if (carouselItems.length > 0) startAutoSlide();
+    return () => { if (autoSlideRef.current) clearInterval(autoSlideRef.current); };
   }, [carouselItems.length, startAutoSlide]);
 
   useEffect(() => {
@@ -311,12 +291,9 @@ export default function HomeScreen() {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status === "granted") {
-          const loc = await Location.getCurrentPositionAsync({
-            accuracy: Location.Accuracy.Balanced,
-          });
+          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
           fetchWeatherAndNews(loc.coords.latitude, loc.coords.longitude);
         } else {
-          // Fallback to Dhaka coords
           fetchWeatherAndNews(23.8103, 90.4125);
         }
       } catch {
@@ -359,13 +336,11 @@ export default function HomeScreen() {
         read: false, createdAt: serverTimestamp(),
       });
       Alert.alert("✅ Request Submitted", "Your unified emergency request has been sent to operators.",
-        [{
-          text: "OK", onPress: () => {
-            setShowUnified(false);
-            setSelectedServices([]); setEmergencyType("");
-            setLocationText(""); setDescription(""); setContactNumber("");
-          }
-        }]
+        [{ text: "OK", onPress: () => {
+          setShowUnified(false);
+          setSelectedServices([]); setEmergencyType("");
+          setLocationText(""); setDescription(""); setContactNumber("");
+        }}]
       );
     } catch { Alert.alert("Error", "Submission failed. Please try again."); }
     finally { setSubmitting(false); }
@@ -373,12 +348,6 @@ export default function HomeScreen() {
 
   const searchBarHeight = searchAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 50] });
   const searchBarOpacity = searchAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 1] });
-
-  // Pulse ring interpolations
-  const makePulseStyle = (anim: Animated.Value) => ({
-    transform: [{ scale: anim.interpolate({ inputRange: [0, 1], outputRange: [1, 2.4] }) }],
-    opacity: anim.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0.55, 0.3, 0] }),
-  });
 
   const renderCarouselItem = ({ item }: { item: CarouselItem }) => {
     if (item.type === "weather") {
@@ -409,15 +378,9 @@ export default function HomeScreen() {
               {w.description}
             </Text>
             <View style={{ flexDirection: "row", gap: 12, marginTop: 6 }}>
-              <Text style={{ color: "rgba(255,255,255,0.65)", fontSize: 11 }}>
-                💧 {w.humidity}%
-              </Text>
-              <Text style={{ color: "rgba(255,255,255,0.65)", fontSize: 11 }}>
-                💨 {w.wind_speed} m/s
-              </Text>
-              <Text style={{ color: "rgba(255,255,255,0.65)", fontSize: 11 }}>
-                🌡️ Feels {w.feels_like}°C
-              </Text>
+              <Text style={{ color: "rgba(255,255,255,0.65)", fontSize: 11 }}>💧 {w.humidity}%</Text>
+              <Text style={{ color: "rgba(255,255,255,0.65)", fontSize: 11 }}>💨 {w.wind_speed} m/s</Text>
+              <Text style={{ color: "rgba(255,255,255,0.65)", fontSize: 11 }}>🌡️ Feels {w.feels_like}°C</Text>
             </View>
           </View>
         </View>
@@ -438,20 +401,12 @@ export default function HomeScreen() {
           }}
         >
           <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8 }}>
-            <View style={{
-              backgroundColor: "#fef2f2", borderRadius: 6,
-              paddingHorizontal: 8, paddingVertical: 3,
-            }}>
-              <Text style={{ color: "#dc2626", fontSize: 10, fontWeight: "700" }}>
-                🚨 EMERGENCY NEWS
-              </Text>
+            <View style={{ backgroundColor: "#fef2f2", borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 }}>
+              <Text style={{ color: "#dc2626", fontSize: 10, fontWeight: "700" }}>🚨 EMERGENCY NEWS</Text>
             </View>
             <Text style={{ color: "#9ca3af", fontSize: 10 }}>{n.source}</Text>
           </View>
-          <Text style={{
-            color: "#1a1a1a", fontSize: 13, fontWeight: "700",
-            lineHeight: 18, marginBottom: 6,
-          }} numberOfLines={2}>
+          <Text style={{ color: "#1a1a1a", fontSize: 13, fontWeight: "700", lineHeight: 18, marginBottom: 6 }} numberOfLines={2}>
             {n.title}
           </Text>
           {n.description ? (
@@ -473,7 +428,6 @@ export default function HomeScreen() {
     <View style={{ flex: 1, backgroundColor: "#f4f0eb" }}>
       <StatusBar style="light" />
 
-      {/* ══ HEADER ══ */}
       <AppHeader
         headerAnim={headerAnim}
         headerOpacity={headerOpacity}
@@ -485,20 +439,15 @@ export default function HomeScreen() {
         contentContainerStyle={{ padding: 16, paddingBottom: 110 }}
         showsVerticalScrollIndicator={false}
       >
-
-        {/* ══ WELCOME CARD ══ */}
+        {/* WELCOME CARD */}
         <Animated.View style={{
           transform: [{ translateY: welcomeAnim }],
           opacity: welcomeOpacity,
           backgroundColor: "#fff",
-          borderRadius: 20,
-          padding: 18,
-          marginBottom: 16,
+          borderRadius: 20, padding: 18, marginBottom: 16,
           borderWidth: 1, borderColor: "#e8e3dd",
           shadowColor: "#000", shadowOpacity: 0.07, shadowRadius: 12, shadowOffset: { width: 0, height: 4 },
-          elevation: 4,
-          borderStartColor: "#305762",
-          borderStartWidth: 5,
+          elevation: 4, borderStartColor: "#305762", borderStartWidth: 5,
         }}>
           <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" }}>
             <View style={{ flex: 1 }}>
@@ -513,14 +462,10 @@ export default function HomeScreen() {
                 <View style={{ width: 3, height: 20, backgroundColor: "#c4451a", borderRadius: 2 }} />
                 <Text style={{ fontSize: 12, color: "#305762", fontStyle: "italic" }}>Your Safety, Our Priority</Text>
               </View>
-
-              {/* User badge */}
               <View style={{
-                marginTop: 12,
-                flexDirection: "row", alignItems: "center", gap: 6,
+                marginTop: 12, flexDirection: "row", alignItems: "center", gap: 6,
                 backgroundColor: "#f0fdf4", borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5,
-                alignSelf: "flex-start",
-                borderWidth: 1, borderColor: "#bbf7d0",
+                alignSelf: "flex-start", borderWidth: 1, borderColor: "#bbf7d0",
               }}>
                 <View style={{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#22c55e" }} />
                 <Text style={{ fontSize: 11, color: "#166534", fontWeight: "700" }}>
@@ -528,24 +473,8 @@ export default function HomeScreen() {
                 </Text>
               </View>
             </View>
-
-            {/* Search icon */}
-            {/* <TouchableOpacity
-              onPress={toggleSearch}
-              style={{
-                width: 40, height: 40, borderRadius: 20,
-                backgroundColor: searchVisible ? "#fdf0eb" : "#f5f5f5",
-                alignItems: "center", justifyContent: "center",
-                borderWidth: 1.5,
-                borderColor: searchVisible ? "#c4451a" : "#e0dbd5",
-                marginTop: 2,
-              }}
-            >
-              <Text style={{ fontSize: 17 }}>🔍</Text>
-            </TouchableOpacity> */}
           </View>
 
-          {/* Animated search bar */}
           <Animated.View style={{ height: searchBarHeight, opacity: searchBarOpacity, overflow: "hidden", marginTop: searchVisible ? 14 : 0 }}>
             <View style={{
               flexDirection: "row", alignItems: "center",
@@ -571,12 +500,10 @@ export default function HomeScreen() {
           </Animated.View>
         </Animated.View>
 
-        {/* ── Weather & News Carousel ── */}
+        {/* CAROUSEL */}
         <View style={{ marginBottom: 20 }}>
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-            <Text style={{ fontSize: 14, fontWeight: "700", color: "#1a1a1a" }}>
-              Live Updates
-            </Text>
+            <Text style={{ fontSize: 14, fontWeight: "700", color: "#1a1a1a" }}>Live Updates</Text>
             {carouselItems.length > 0 && (
               <View style={{ flexDirection: "row", gap: 4 }}>
                 {carouselItems.map((_, i) => (
@@ -597,9 +524,7 @@ export default function HomeScreen() {
               borderWidth: 1, borderColor: "#e8e4df",
             }}>
               <ActivityIndicator color="#c4451a" />
-              <Text style={{ color: "#9ca3af", fontSize: 11, marginTop: 8 }}>
-                Fetching weather & news...
-              </Text>
+              <Text style={{ color: "#9ca3af", fontSize: 11, marginTop: 8 }}>Fetching weather & news...</Text>
             </View>
           ) : carouselItems.length === 0 ? (
             <View style={{
@@ -616,8 +541,7 @@ export default function HomeScreen() {
               data={carouselItems}
               renderItem={renderCarouselItem}
               keyExtractor={(_, i) => `carousel_${i}`}
-              horizontal
-              pagingEnabled
+              horizontal pagingEnabled
               showsHorizontalScrollIndicator={false}
               scrollEnabled={false}
               getItemLayout={(_, index) => ({
@@ -626,16 +550,14 @@ export default function HomeScreen() {
                 index,
               })}
               onMomentumScrollEnd={(e) => {
-                const index = Math.round(
-                  e.nativeEvent.contentOffset.x / (SCREEN_WIDTH - 32)
-                );
+                const index = Math.round(e.nativeEvent.contentOffset.x / (SCREEN_WIDTH - 32));
                 setCurrentIndex(index);
               }}
             />
           )}
         </View>
 
-        {/* ══ EMERGENCY SERVICES GRID ══ */}
+        {/* EMERGENCY SERVICES */}
         <Animated.View style={{ transform: [{ translateY: servicesAnim }], opacity: servicesOpacity, marginBottom: 14 }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
             <View style={{ width: 4, height: 18, backgroundColor: "#c4451a", borderRadius: 2 }} />
@@ -644,8 +566,6 @@ export default function HomeScreen() {
             </Text>
           </View>
         </Animated.View>
-
-
 
         {filteredServices.length === 0 ? (
           <View style={{
@@ -656,33 +576,19 @@ export default function HomeScreen() {
             <Text style={{ color: "#aaa", fontSize: 13 }}>No results for "{searchQuery}"</Text>
           </View>
         ) : (
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12, marginBottom: 8 }}>
-            {filteredServices.length === 0 ? (
-              <View style={{
-                backgroundColor: "#fff", borderRadius: 16, padding: 28,
-                alignItems: "center", borderWidth: 1, borderColor: "#e8e3dd", marginBottom: 16,
-              }}>
-                <Text style={{ fontSize: 32, marginBottom: 8 }}>🔍</Text>
-                <Text style={{ color: "#aaa", fontSize: 13 }}>No results for "{searchQuery}"</Text>
-              </View>
-            ) : (
-              <EmergencyGrid
-                services={filteredServices}
-                cardAnims={cardAnims}
-                cardOpacities={cardOpacities}
-                cardScales={cardScales}
-                onPress={(s) => {
-                  if (s.label === "Unified Service") setShowUnified(true);
-                  else if (s.route) router.push(s.route as any);
-                }}
-              />
-            )}
-          </View>
+          <EmergencyGrid
+            services={filteredServices}
+            cardAnims={cardAnims}
+            cardOpacities={cardOpacities}
+            cardScales={cardScales}
+            onPress={(s) => {
+              if (s.label === "Unified Service") setShowUnified(true);
+              else if (s.route) router.push(s.route as any);
+            }}
+          />
         )}
 
-        {/* ══ SOS BUTTON — s ══ */}
-
-
+        {/* SOS BUTTON */}
         <TouchableOpacity
           onPress={() => Alert.alert(
             "🚨 Send SOS?",
@@ -694,134 +600,27 @@ export default function HomeScreen() {
           )}
           activeOpacity={0.85}
           style={{
-            position: "absolute",
-            bottom: 50,
-            right: 16,
-            width: 64,
-            height: 64,
-            borderRadius: 32,
+            position: "absolute", bottom: 50, right: 16,
+            width: 64, height: 64, borderRadius: 32,
             backgroundColor: "#c4451a",
-            alignItems: "center",
-            justifyContent: "center",
-            shadowColor: "#c4451a",
-            shadowOpacity: 0.55,
-            shadowRadius: 12,
-            shadowOffset: { width: 0, height: 4 },
-            elevation: 10,
-
+            alignItems: "center", justifyContent: "center",
+            shadowColor: "#c4451a", shadowOpacity: 0.55, shadowRadius: 12,
+            shadowOffset: { width: 0, height: 4 }, elevation: 10,
           }}
         >
-          <Text style={{ fontSize: 35, color: "rgba(255,255,255,0.8)", letterSpacing: 0, rowGap: 0, width: 35, height: 40 }}>▲</Text>
-          <Text style={{ color: "#fffefe", fontSize: 10, fontWeight: "900", letterSpacing: 0, rowGap: 0 }}>SOS</Text>
+          <Text style={{ fontSize: 35, color: "rgba(255,255,255,0.8)", width: 35, height: 40 }}>▲</Text>
+          <Text style={{ color: "#fffefe", fontSize: 10, fontWeight: "900" }}>SOS</Text>
         </TouchableOpacity>
-
-
       </ScrollView>
 
       {/* ══ SIDEBAR ══ */}
-      {sidebarVisible && (
-        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 100 }}>
-          <TouchableOpacity
-            style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.45)" }}
-            onPress={closeSidebar}
-            activeOpacity={1}
-          />
-          <Animated.View style={{
-            position: "absolute", top: 0, right: 0, bottom: 0,
-            width: SCREEN_WIDTH * 0.74,
-            backgroundColor: "#aa411e39",
-            transform: [{ translateX: sidebarAnim }],
-            paddingTop: 62, paddingHorizontal: 22,
-            shadowColor: "#000", shadowOpacity: 0.2, shadowRadius: 20, elevation: 14,
-            borderTopLeftRadius: 24, borderBottomLeftRadius: 24,
-          }}>
-            <TouchableOpacity
-              onPress={closeSidebar}
-              style={{
-                position: "absolute", top: 54, right: 18,
-                width: 34, height: 34, borderRadius: 17,
-                backgroundColor: "#f5f5f5",
-                alignItems: "center", justifyContent: "center",
-              }}
-            >
-              <Text style={{ fontSize: 16, color: "#959595" }}>✕</Text>
-            </TouchableOpacity>
-
-            {/* Profile area */}
-            <View style={{
-              alignItems: "center", marginBottom: 24,
-              paddingBottom: 22, borderBottomWidth: 1.5, borderBottomColor: "#f0f0f0",
-            }}>
-              <View style={{
-                width: 70, height: 70, borderRadius: 35,
-                backgroundColor: "#fdf0eb",
-                alignItems: "center", justifyContent: "center", marginBottom: 10,
-                borderWidth: 2, borderColor: "#c4451a30",
-                shadowColor: "#c4451a", shadowOpacity: 0.15, shadowRadius: 8, elevation: 3,
-              }}>
-                <Text style={{ fontSize: 30 }}>👤</Text>
-              </View>
-              <Text style={{ color: "#111", fontSize: 16, fontWeight: "800" }}>
-                {nickname ?? "User"}
-              </Text>
-              <View style={{
-                marginTop: 5, paddingHorizontal: 10, paddingVertical: 3,
-                backgroundColor: "#f0fdf4", borderRadius: 20, borderWidth: 1, borderColor: "#bbf7d0",
-              }}>
-                <Text style={{ color: "#166534", fontSize: 11, fontWeight: "700" }}>LifeLine BD Member</Text>
-              </View>
-            </View>
-
-            {[
-              { icon: "👤", label: "Profile", bg: "#fdf0eb", onPress: () => { closeSidebar(); router.push("/(tabs)/profile" as any); } },
-              { icon: "📋", label: "History", bg: "#f0f4ff", onPress: () => { closeSidebar(); router.push("/(feat)/history" as any); } },
-              { icon: "💬", label: "Chat with Operator", onPress: () => { closeSidebar(); router.push("/(feat)/chat" as any); } },
-            ].map((item, i) => (
-              <TouchableOpacity
-                key={i} onPress={item.onPress}
-                style={{
-                  flexDirection: "row", alignItems: "center", gap: 14,
-                  paddingVertical: 13, paddingHorizontal: 10,
-                  borderRadius: 14, marginBottom: 4,
-                  backgroundColor: "transparent",
-                }}
-                activeOpacity={0.7}
-              >
-                <View style={{
-                  width: 40, height: 40, borderRadius: 20,
-                  backgroundColor: item.bg,
-                  alignItems: "center", justifyContent: "center",
-                }}>
-                  <Text style={{ fontSize: 18 }}>{item.icon}</Text>
-                </View>
-                <Text style={{ color: "#faf7f7", fontSize: 15, fontWeight: "600" }}>{item.label}</Text>
-                <Text style={{ color: "#ccc", marginLeft: "auto", fontSize: 16 }}>›</Text>
-              </TouchableOpacity>
-            ))}
-
-            <View style={{ height: 1.5, backgroundColor: "#f0f0f0", marginVertical: 14 }} />
-
-            <TouchableOpacity
-              onPress={handleLogout}
-              style={{
-                flexDirection: "row", alignItems: "center", gap: 14,
-                paddingVertical: 13, paddingHorizontal: 10, borderRadius: 14,
-                backgroundColor: "#fff5f5",
-              }}
-              activeOpacity={0.7}
-            >
-              <View style={{
-                width: 40, height: 40, borderRadius: 20,
-                backgroundColor: "#fee2e2",
-                alignItems: "center", justifyContent: "center",
-              }}>
-                <Text style={{ fontSize: 18 }}>🚪</Text>
-              </View>
-              <Text style={{ color: "#dc2626", fontSize: 15, fontWeight: "700" }}>Logout</Text>
-            </TouchableOpacity>
-          </Animated.View>
-        </View>
-      )}
+      <Sidebar
+        visible={sidebarVisible}
+        sidebarAnim={sidebarAnim}
+        nickname={nickname ?? undefined}
+        onClose={closeSidebar}
+        onLogout={handleLogout}
+      />
 
       {/* ══ UNIFIED MODAL ══ */}
       <Modal visible={showUnified} animationType="slide" transparent onRequestClose={() => setShowUnified(false)}>
@@ -832,7 +631,6 @@ export default function HomeScreen() {
               borderTopLeftRadius: 28, borderTopRightRadius: 28,
               overflow: "hidden", maxHeight: "92%",
             }}>
-              {/* Modal header */}
               <View style={{
                 backgroundColor: "#c4451a",
                 paddingHorizontal: 20, paddingTop: 22, paddingBottom: 18,
@@ -963,9 +761,7 @@ export default function HomeScreen() {
           </KeyboardAvoidingView>
         </View>
       </Modal>
-
     </View>
-
   );
 }
 
@@ -975,8 +771,3 @@ const inputStyle = {
   padding: 13, fontSize: 13, color: "#111",
   backgroundColor: "#fafafa", marginBottom: 14,
 };
-
-
-/*
-
-*/
