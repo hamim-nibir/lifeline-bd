@@ -27,9 +27,14 @@ const Logo = ({ size = 40, showText = true, onPress }: LogoProps) => {
       {/* <Text style={{ fontSize: 18 }}>🛡️</Text> */}
 
       {showText && (
-        <Text className="text-white text-2xl font-bold">
-          Lifeline BD
-        </Text>
+        <View>
+          <Text style={{ color: "#fff", fontSize: 20, fontWeight: "900", letterSpacing: 0.5 }}>
+            অভয়
+          </Text>
+          <Text style={{ color: "rgba(255, 255, 255, 0.61)", fontSize: 10, letterSpacing: 1 }}>
+            LIFELINE BD
+          </Text>
+        </View>
       )}
     </Container>
   );
