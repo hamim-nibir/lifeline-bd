@@ -15,12 +15,14 @@ import * as Location from "expo-location";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { db } from "../../services/firebase";
 import AppHeader from "../../components/AppHeader";
+import EmergencyGrid from "../../components/features/EmergencyGrid";
 
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 const ALL_SERVICES = [
   { label: "Ambulance", icon: "🚑", color: "#fff5f5", accent: "#ef4444", route: "/(tabs)/police" },
+  { label: "Women Safety", icon: "🩷", color: "#fdf2f8", accent: "#ec4899", route: "/(feat)/women-safety" },
   { label: "Police", icon: "🛡️", color: "#f0f4ff", accent: "#3b82f6", route: "/(tabs)/police" },
   { label: "Fire Service", icon: "🔥", color: "#fff7ed", accent: "#f97316", route: "/(tabs)/police" },
   { label: "Unified Service", icon: "⚡", color: "#fefce8", accent: "#eab308", route: null },
@@ -655,50 +657,26 @@ export default function HomeScreen() {
           </View>
         ) : (
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12, marginBottom: 8 }}>
-            {filteredServices.map((s, i) => (
-              <Animated.View
-                key={s.label}
-                style={{
-                  width: "47%",
-                  transform: [{ translateY: cardAnims[i] }, { scale: cardScales[i] }],
-                  opacity: cardOpacities[i],
+            {filteredServices.length === 0 ? (
+              <View style={{
+                backgroundColor: "#fff", borderRadius: 16, padding: 28,
+                alignItems: "center", borderWidth: 1, borderColor: "#e8e3dd", marginBottom: 16,
+              }}>
+                <Text style={{ fontSize: 32, marginBottom: 8 }}>🔍</Text>
+                <Text style={{ color: "#aaa", fontSize: 13 }}>No results for "{searchQuery}"</Text>
+              </View>
+            ) : (
+              <EmergencyGrid
+                services={filteredServices}
+                cardAnims={cardAnims}
+                cardOpacities={cardOpacities}
+                cardScales={cardScales}
+                onPress={(s) => {
+                  if (s.label === "Unified Service") setShowUnified(true);
+                  else if (s.route) router.push(s.route as any);
                 }}
-              >
-                <TouchableOpacity
-                  onPress={() => {
-                    if (s.label === "Unified Service") setShowUnified(true);
-                    else if (s.route) router.push(s.route as any);
-                  }}
-                  style={{
-                    backgroundColor: "#fff",
-                    borderRadius: 18,
-                    borderWidth: 1.5, borderColor: "#e8e3dd",
-                    paddingVertical: 22, paddingHorizontal: 12,
-                    alignItems: "center", gap: 10,
-                    shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 3 },
-                    elevation: 3,
-                  }}
-                  activeOpacity={0.82}
-                >
-                  <View style={{
-                    width: 54, height: 54, borderRadius: 27,
-                    backgroundColor: s.color,
-                    alignItems: "center", justifyContent: "center",
-                    borderWidth: 1.5, borderColor: `${s.accent}25`,
-                    shadowColor: s.accent, shadowOpacity: 0.2, shadowRadius: 6, elevation: 2,
-                  }}>
-                    <Text style={{ fontSize: 26 }}>{s.icon}</Text>
-                  </View>
-                  <Text style={{ fontSize: 13, fontWeight: "700", color: "#111", textAlign: "center" }}>{s.label}</Text>
-                  <View style={{
-                    paddingHorizontal: 10, paddingVertical: 3, borderRadius: 12,
-                    backgroundColor: s.color, borderWidth: 1, borderColor: `${s.accent}30`,
-                  }}>
-                    <Text style={{ fontSize: 10, color: s.accent, fontWeight: "700" }}>TAP TO CALL</Text>
-                  </View>
-                </TouchableOpacity>
-              </Animated.View>
-            ))}
+              />
+            )}
           </View>
         )}
 

@@ -65,6 +65,7 @@ export default function WomenSafetyScreen() {
     const [modalVisible, setModalVisible] = useState(false);
     const [editingContact, setEditingContact] = useState<Contact | null>(null);
     const [form, setForm] = useState(EMPTY_FORM);
+
     // ── Hooks ──
     const headerAnim = useRef(new Animated.Value(0)).current;
     const headerOpacity = useRef(new Animated.Value(1)).current;
@@ -107,7 +108,7 @@ export default function WomenSafetyScreen() {
     const [profile, setProfile] = useState<any>(null);
     const { showGuard, setShowGuard, requireVerified } = useVerification();
 
-    // ── Fetch profile to check verification status ──
+    // ── Fetch profile ──
     useEffect(() => {
         if (!uid) return;
         getUserProfile(uid).then(setProfile).catch(console.error);
@@ -163,7 +164,7 @@ export default function WomenSafetyScreen() {
         );
     };
 
-    // ── Send Facebook message (opens messenger) ──
+    // ── Send Facebook message ──
     const sendFacebook = (profileUrl: string, message: string) => {
         if (!profileUrl) return;
         Linking.openURL(profileUrl).catch(() =>
@@ -326,12 +327,15 @@ export default function WomenSafetyScreen() {
             {/* ── Scrollable Main Content ── */}
             <ScrollView
                 style={{ flex: 1 }}
-                contentContainerStyle={{ padding: 2, paddingBottom: 40 }}
+                contentContainerStyle={{ paddingHorizontal: 12, paddingTop: 12, paddingBottom: 40 }}
                 showsVerticalScrollIndicator={false}
             >
                 {/* Hero */}
                 <View style={{
-                    backgroundColor: "#c4451a", margin: 12, borderRadius: 16, padding: 16,
+                    backgroundColor: "#c4451a",
+                    borderRadius: 16,
+                    padding: 16,
+                    marginBottom: 12,
                 }}>
                     <View style={{
                         width: 38, height: 38, borderRadius: 9,
@@ -348,37 +352,36 @@ export default function WomenSafetyScreen() {
                     </Text>
                 </View>
 
-                <View style={{ paddingHorizontal: 12 }}></View>
                 {/* Verification warning */}
-          {profile && profile.verificationStatus !== "verified" && (
-            <View style={{
-              backgroundColor: "#fff7ed", borderWidth: 1, borderColor: "#fed7aa",
-              borderRadius: 12, padding: 12, marginBottom: 16,
-              flexDirection: "row", alignItems: "center", gap: 10,
-            }}>
-              <Text style={{ fontSize: 18 }}>⚠️</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={{ color: "#92400e", fontWeight: "700", fontSize: 13 }}>
-                  Account not verified
-                </Text>
-                <Text style={{ color: "#b45309", fontSize: 12, marginTop: 2 }}>
-                  Verify your account to activate urgent alert
-                </Text>
-              </View>
-              <TouchableOpacity
-                onPress={() => router.push("/(tabs)/profile" as any)}
-                style={{
-                  backgroundColor: "#c4451a", borderRadius: 8,
-                  paddingHorizontal: 10, paddingVertical: 5,
-                }}
-              >
-                <Text style={{ color: "#fff", fontSize: 11, fontWeight: "700" }}>Verify</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+                {profile && profile.verificationStatus !== "verified" && (
+                    <View style={{
+                        backgroundColor: "#fff7ed", borderWidth: 1, borderColor: "#fed7aa",
+                        borderRadius: 12, padding: 12, marginBottom: 12,
+                        flexDirection: "row", alignItems: "center", gap: 10,
+                    }}>
+                        <Text style={{ fontSize: 18 }}>⚠️</Text>
+                        <View style={{ flex: 1 }}>
+                            <Text style={{ color: "#92400e", fontWeight: "700", fontSize: 13 }}>
+                                Account not verified
+                            </Text>
+                            <Text style={{ color: "#b45309", fontSize: 12, marginTop: 2 }}>
+                                Verify your account to activate urgent alert
+                            </Text>
+                        </View>
+                        <TouchableOpacity
+                            onPress={() => router.push("/(tabs)/profile" as any)}
+                            style={{
+                                backgroundColor: "#c4451a", borderRadius: 8,
+                                paddingHorizontal: 10, paddingVertical: 5,
+                            }}
+                        >
+                            <Text style={{ color: "#fff", fontSize: 11, fontWeight: "700" }}>Verify</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
 
                 {/* Activate Button */}
-                <View style={{ alignItems: "center", marginBottom: 24 }}>
+                <View style={{ alignItems: "center", marginBottom: 12 }}>
                     <TouchableOpacity
                         onPress={() => requireVerified(profile, handleTogglePanic)}
                         disabled={activating || loading}
@@ -443,7 +446,7 @@ export default function WomenSafetyScreen() {
                     overflow: "hidden",
                     borderWidth: 1,
                     borderColor: "#e5e7eb",
-                    marginBottom: 16,
+                    marginBottom: 12,
                 }}>
                     {loading ? (
                         <View style={{
@@ -616,36 +619,6 @@ export default function WomenSafetyScreen() {
                         </View>
                     )}
                 </View>
-
-                {/* ── Emergency Call Button ── */}
-                <TouchableOpacity
-                    onPress={handleEmergencyCall}
-                    style={{
-                        backgroundColor: "#dc2626",
-                        borderRadius: 16,
-                        paddingVertical: 18,
-                        alignItems: "center",
-                        flexDirection: "row",
-                        justifyContent: "center",
-                        gap: 10,
-                        elevation: 4,
-                        shadowColor: "#dc2626",
-                        shadowOffset: { width: 0, height: 3 },
-                        shadowOpacity: 0.3,
-                        shadowRadius: 6,
-                    }}
-                    activeOpacity={0.85}
-                >
-                    <Text style={{ fontSize: 24 }}>📞</Text>
-                    <View>
-                        <Text style={{ color: "#fff", fontWeight: "800", fontSize: 16 }}>
-                            Emergency Call
-                        </Text>
-                        <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 12 }}>
-                            Calls 999 immediately
-                        </Text>
-                    </View>
-                </TouchableOpacity>
             </ScrollView>
 
             {/* ── Contact Form Modal ── */}
