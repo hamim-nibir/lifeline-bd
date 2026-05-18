@@ -22,7 +22,6 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 const ALL_SERVICES = [
   { label: "Ambulance", icon: "🚑", color: "#fff5f5", accent: "#ef4444", route: "/(tabs)/police" },
-  { label: "Women Safety", icon: "🩷", color: "#fdf2f8", accent: "#ec4899", route: "/(feat)/women-safety" },
   { label: "Police", icon: "🛡️", color: "#f0f4ff", accent: "#3b82f6", route: "/(tabs)/police" },
   { label: "Fire Service", icon: "🔥", color: "#fff7ed", accent: "#f97316", route: "/(tabs)/police" },
   { label: "Unified Service", icon: "⚡", color: "#fefce8", accent: "#eab308", route: null },
