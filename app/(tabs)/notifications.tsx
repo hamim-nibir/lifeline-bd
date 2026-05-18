@@ -115,10 +115,10 @@ export default function NotificationsScreen() {
     const q = accountType === "operator"
       ? query(collection(db, "notifications"), orderBy("createdAt", "desc"))
       : query(
-          collection(db, "notifications"),
-          where("forUid", "==", uid),
-          orderBy("createdAt", "desc")
-        );
+        collection(db, "notifications"),
+        where("forUid", "==", uid),
+        orderBy("createdAt", "desc")
+      );
 
     const unsub = onSnapshot(q, (snap) => {
       const list: Notification[] = snap.docs.map((d) => ({
@@ -219,10 +219,10 @@ export default function NotificationsScreen() {
   const routeAction = (notif: Notification) => {
     switch (notif.type) {
       case "accidentReport":
-        router.push("/(feat)/accident-reports" as any);
+        router.push("/(feat)/operator-accident-reports" as any);
         break;
       case "panicAlert":
-        router.push("/(feat)/operator-alerts" as any);
+        router.push("/(feat)/operator-panic-alerts" as any);
         break;
       case "verificationUpdate":
         router.push("/(tabs)/profile" as any);
@@ -495,29 +495,33 @@ export default function NotificationsScreen() {
                       notif.type === "panicAlert" ||
                       notif.type === "bloodRequest" ||
                       notif.type === "verificationUpdate") && (
-                      <TouchableOpacity
-                        onPress={() => handleAction(notif)}
-                        style={{
-                          flex: 2,
-                          backgroundColor: accountType === "operator" ? "#7c3aed" : "#c4451a",
-                          borderRadius: 8, paddingVertical: 9,
-                          alignItems: "center", flexDirection: "row",
-                          justifyContent: "center", gap: 6,
-                        }}
-                      >
-                        <Text style={{ fontSize: 14 }}>
-                          {notif.type === "verificationUpdate" ? "👤" :
-                           notif.type === "bloodRequest" ? "🩸" : "→"}
-                        </Text>
-                        <Text style={{ color: "#fff", fontSize: 12, fontWeight: "700" }}>
-                          {notif.type === "verificationUpdate"
-                            ? "View Profile"
-                            : notif.type === "bloodRequest"
-                            ? "View Request"
-                            : "Take Action"}
-                        </Text>
-                      </TouchableOpacity>
-                    )}
+                        <TouchableOpacity
+                          onPress={() => handleAction(notif)}
+                          style={{
+                            flex: 2,
+                            backgroundColor: accountType === "operator" ? "#7c3aed" : "#c4451a",
+                            borderRadius: 8, paddingVertical: 9,
+                            alignItems: "center", flexDirection: "row",
+                            justifyContent: "center", gap: 6,
+                          }}
+                        >
+                          <Text style={{ fontSize: 14 }}>
+                            {notif.type === "verificationUpdate" ? "👤" :
+                              notif.type === "bloodRequest" ? "🩸" :
+                              notif.type === "panicAlert" ? "🆘" : "→"
+                            }
+                          </Text>
+                          <Text style={{ color: "#fff", fontSize: 12, fontWeight: "700" }}>
+                            {notif.type === "verificationUpdate"
+                              ? "View Profile"
+                              : notif.type === "bloodRequest"
+                                ? "View Request"
+                                : notif.type === "panicAlert"
+                                  ? "View Alert"
+                                  : "Take Action"}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
                   </View>
                 </View>
               );

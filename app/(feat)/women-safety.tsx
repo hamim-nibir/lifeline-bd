@@ -196,20 +196,48 @@ export default function WomenSafetyScreen() {
         setActivating(true);
         try {
             if (!isActivated) {
+                const mapsLink = `https://maps.google.com/?q=${location.latitude},${location.longitude}`;
+
+                // 1. Write to panicAlerts (for dashboard badge count)
                 await setDoc(doc(db, "panicAlerts", uid), {
                     uid,
                     nickname: nickname ?? "Unknown",
+                    phone: profile?.phone ?? "Not provided",
+                    name: profile?.name ?? nickname ?? "Unknown",
                     latitude: location.latitude,
                     longitude: location.longitude,
+                    mapsLink,
                     activatedAt: serverTimestamp(),
                     active: true,
                     status: "active",
                 });
+
+                // 2. Write to notifications so operators see it ← THIS WAS MISSING
+                await addDoc(collection(db, "notifications"), {
+                    type: "panicAlert",
+                    title: "🆘 Women Safety Panic Alert",
+                    body: `${nickname ?? "A user"} has activated panic mode and needs immediate help!`,
+                    reportedBy: nickname ?? "Unknown",
+                    reportedByUid: uid,
+                    citizenName: profile?.name ?? nickname ?? "Unknown",
+                    citizenPhone: profile?.phone ?? "Not provided",
+                    severity: "high",
+                    read: false,
+                    resolved: false,
+                    assignedVolunteer: null,
+                    location: {
+                        latitude: location.latitude,
+                        longitude: location.longitude,
+                        mapsLink,
+                    },
+                    createdAt: serverTimestamp(),
+                });
+
                 setIsActivated(true);
                 notifyContacts(location);
                 Alert.alert(
                     "🚨 Panic Mode Activated",
-                    "Your location has been shared and contacts notified!"
+                    "Operators and your contacts have been notified!"
                 );
             } else {
                 await deleteDoc(doc(db, "panicAlerts", uid));
