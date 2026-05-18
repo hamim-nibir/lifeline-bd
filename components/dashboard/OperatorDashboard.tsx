@@ -47,7 +47,7 @@ export default function OperatorDashboard() {
 
   const handleLogout = async () => {
     await logoutUser();
-    router.replace("/");
+    router.replace("/login");
   };
 
   const handleFeaturePress = (route: string) => {
