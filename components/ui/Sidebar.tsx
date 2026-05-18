@@ -33,9 +33,9 @@ export default function Sidebar({ visible, sidebarAnim, nickname, onClose, onLog
     },
     {
       icon: "💬",
-      label: "Chat with Operator",
+      label: "Messages",
       bg: "#f0fdf4",
-      onPress: () => { onClose(); router.push("/(feat)/chat" as any); },
+      onPress: () => { onClose(); router.push("/(feat)/chat-list" as any); },
     },
   ];
 
