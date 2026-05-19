@@ -30,6 +30,7 @@ const STATUS_COLORS: Record<string, { bg: string; text: string; border: string }
 const TYPE_CONFIG: Record<string, { icon: string; label: string; color: string }> = {
   policeReport:    { icon: "🚔", label: "Police Report",   color: "#1a4a4a" },
   accidentReport:  { icon: "🚨", label: "Accident Report", color: "#7c3aed" },
+  disasterAlert:   { icon: "🌩️", label: "Disaster Alert",  color: "#5b21b6" },
   unifiedRequest:  { icon: "⚡", label: "Unified Request", color: "#c4451a" },
 };
 
@@ -79,6 +80,24 @@ export default function HistoryScreen() {
           status: data.status ?? "pending",
           createdAt: data.createdAt,
           collection: "accidentReports",
+        });
+      });
+
+      // Fetch disaster alerts
+      const dSnap = await getDocs(query(
+        collection(db, "disasterAlerts"),
+        where("uid", "==", uid),
+        orderBy("createdAt", "desc")
+      ));
+      dSnap.docs.forEach((d) => {
+        const data = d.data();
+        allItems.push({
+          id: d.id,
+          type: "disasterAlert",
+          title: `Disaster Alert — ${data.disasterType}`,
+          status: data.status ?? "pending",
+          createdAt: data.createdAt,
+          collection: "disasterAlerts",
         });
       });
 
