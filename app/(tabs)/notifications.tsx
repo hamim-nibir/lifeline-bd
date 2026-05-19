@@ -53,6 +53,8 @@ type RequesterDetails = {
 const NOTIF_ICONS: Record<string, string> = {
   accidentReport: "🚨",
   panicAlert: "🆘",
+  disasterWarning: "🌩️",
+  disasterAlert: "🌩️",
   verificationUpdate: "🪪",
   bloodRequest: "🩸",
   bloodRequestRejected: "❌",
