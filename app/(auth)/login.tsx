@@ -170,7 +170,9 @@ export default function AuthScreen() {
 
         {/* ── Form ── */}
         <Animated.View className="mx-6 mt-6" style={{ opacity: fadeAnim }}>
-          <LanguageSwitcher compact />
+          <View style={{ alignSelf: "flex-start", marginBottom: 8 }}>
+            <LanguageSwitcher compact />
+          </View>
 
           {/* Register-only fields */}
           {!isLogin && (
