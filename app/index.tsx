@@ -34,11 +34,14 @@ export default function LandingScreen() {
 
       {/* Hero section */}
       <View
-        className="bg-orange-600 items-center justify-center px-8"
-        style={{ height: height * 0.50 }}
+        className="items-center justify-center px-8"
+        style={{
+          height: height * 0.50,
+          backgroundColor: "#c4451a", shadowColor: "#c4451a", shadowOpacity: 0.45, shadowRadius: 6, elevation: 4,
+        }}
       >
         <Text className="text-white text-4xl font-bold text-center leading-tight"
-        style={{marginTop:50}}>
+          style={{ marginTop: 50 }}>
           Emergency Help
         </Text>
         <Text className="text-red-200 text-base text-center mt-4 leading-relaxed">
