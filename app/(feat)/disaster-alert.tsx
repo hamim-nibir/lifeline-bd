@@ -17,12 +17,16 @@ import {
   type LiveDisasterAlert,
   type ShelterLocation,
 } from "../../services/disasterIntelService";
-import {
-  PREPAREDNESS_GUIDES,
-  type PreparednessDisasterType,
-} from "../../constants/disasterPreparedness";
+import type { PreparednessDisasterType } from "../../constants/disasterPreparedness";
 import { DISASTER_ALERT_RADIUS_KM, formatDistance } from "../../utils/geo";
 import { useTranslation } from "../../hooks/useTranslation";
+import { useLanguageStore } from "../../store/languageStore";
+import {
+  disasterTypeLabel,
+  getLocalizedPreparednessGuide,
+  urgencyLabel,
+} from "../../i18n/disasterHelpers";
+import { interpolate } from "../../i18n/reportHelpers";
 
 type DisasterType = "Flood" | "Cyclone" | "Earthquake" | "Other" | null;
 
@@ -44,6 +48,7 @@ export default function DisasterAlertScreen() {
   const router = useRouter();
   const { user, nickname } = useAuthStore();
   const { t } = useTranslation();
+  const locale = useLanguageStore((s) => s.locale);
   const uid = user?.uid ?? "";
 
   const [coords, setCoords] = useState(getDefaultUserCoordinates());
@@ -105,8 +110,11 @@ export default function DisasterAlertScreen() {
         const pushed = await pushDisasterWarningNotifications(uid, alerts);
         if (pushed > 0 && !isRefresh) {
           Alert.alert(
-            "⚠️ Disaster warning",
-            `${pushed} new alert(s) within ${DISASTER_ALERT_RADIUS_KM} km of you. See what to bring and shelters below.`
+            `⚠️ ${t("disaster.warningTitle")}`,
+            interpolate(t("disaster.warningBody"), {
+              count: String(pushed),
+              km: String(DISASTER_ALERT_RADIUS_KM),
+            })
           );
         }
       }
@@ -129,14 +137,14 @@ export default function DisasterAlertScreen() {
   };
 
   const hasActiveThreat = liveAlerts.length > 0;
-  const guide = PREPAREDNESS_GUIDES[activeGuide];
+  const guide = getLocalizedPreparednessGuide(activeGuide, locale);
 
   const handleShareLocation = async () => {
     setLocLoading(true);
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
-        Alert.alert("Permission Denied", "Location permission is required.");
+        Alert.alert(t("common.permissionDenied"), t("reportForm.locationRequired"));
         return;
       }
       const loc = await Location.getCurrentPositionAsync({
@@ -154,14 +162,14 @@ export default function DisasterAlertScreen() {
       setLocation({
         latitude: loc.coords.latitude,
         longitude: loc.coords.longitude,
-        address: address || "Location captured",
+        address: address || t("common.locationCaptured"),
       });
       setCoords({
         latitude: loc.coords.latitude,
         longitude: loc.coords.longitude,
       });
     } catch {
-      Alert.alert("Error", "Could not get your location. Try again.");
+      Alert.alert(t("common.error"), t("reportForm.locationError"));
     } finally {
       setLocLoading(false);
     }
@@ -169,19 +177,19 @@ export default function DisasterAlertScreen() {
 
   const handleSubmit = async () => {
     if (!disasterType) {
-      Alert.alert("Required", "Please select a disaster type.");
+      Alert.alert(t("common.required"), t("disaster.needType"));
       return;
     }
     if (!description.trim()) {
-      Alert.alert("Required", "Please describe the situation.");
+      Alert.alert(t("common.required"), t("disaster.needDescription"));
       return;
     }
     if (!contactNumber.trim()) {
-      Alert.alert("Required", "Please enter a contact number.");
+      Alert.alert(t("common.required"), t("disaster.needContact"));
       return;
     }
     if (!location) {
-      Alert.alert("Required", "Please share your location before submitting.");
+      Alert.alert(t("common.required"), t("disaster.needLocation"));
       return;
     }
 
@@ -219,12 +227,12 @@ export default function DisasterAlertScreen() {
       });
 
       Alert.alert(
-        "✅ Alert Sent",
-        "Your disaster alert has been sent to emergency operators.",
-        [{ text: "OK", onPress: () => router.back() }]
+        `✅ ${t("disaster.alertSent")}`,
+        t("disaster.alertSentBody"),
+        [{ text: t("common.ok"), onPress: () => router.back() }]
       );
     } catch (err) {
-      Alert.alert("Error", "Failed to send alert. Please try again.");
+      Alert.alert(t("common.error"), t("disaster.failedAlert"));
       console.error(err);
     } finally {
       setSubmitting(false);
@@ -280,19 +288,18 @@ export default function DisasterAlertScreen() {
       >
         {/* ── LIVE ALERTS FROM INTERNET ── */}
         <View style={cardStyle}>
-          <Text style={sectionTitleStyle}>🌐 Live disaster warnings</Text>
+          <Text style={sectionTitleStyle}>🌐 {t("disaster.liveWarningsTitle")}</Text>
           <Text style={{ color: "#6b7280", fontSize: 12, marginBottom: 12, lineHeight: 18 }}>
-            Data from GDACS, USGS & weather services. You are only notified when a flood, cyclone,
-            or earthquake is within {DISASTER_ALERT_RADIUS_KM} km of your current location.
+            {interpolate(t("disaster.liveWarningsDesc"), { km: String(DISASTER_ALERT_RADIUS_KM) })}
           </Text>
 
           {loadingIntel ? (
             <ActivityIndicator color="#7c3aed" style={{ marginVertical: 20 }} />
           ) : liveAlerts.length === 0 ? (
             <View style={{ backgroundColor: "#f0fdf4", borderRadius: 12, padding: 16 }}>
-              <Text style={{ color: "#15803d", fontWeight: "700" }}>✅ No major threats detected</Text>
+              <Text style={{ color: "#15803d", fontWeight: "700" }}>✅ {t("disaster.noThreatsTitle")}</Text>
               <Text style={{ color: "#166534", fontSize: 12, marginTop: 4 }}>
-                No flood, cyclone, or earthquake within {DISASTER_ALERT_RADIUS_KM} km. Pull to refresh.
+                {interpolate(t("disaster.noThreatsDesc"), { km: String(DISASTER_ALERT_RADIUS_KM) })}
               </Text>
             </View>
           ) : (
@@ -326,7 +333,7 @@ export default function DisasterAlertScreen() {
                   {alert.description}
                 </Text>
                 <Text style={{ fontSize: 11, color: "#6b7280", marginTop: 8 }}>
-                  📍 {formatDistance(alert.distanceKm)} from you · {alert.source.toUpperCase()}
+                  📍 {interpolate(t("disaster.fromYou"), { distance: formatDistance(alert.distanceKm) })} · {alert.source.toUpperCase()}
                 </Text>
               </TouchableOpacity>
             ))
@@ -337,10 +344,10 @@ export default function DisasterAlertScreen() {
           <>
             <View style={[cardStyle, { borderColor: "#c4b5fd", borderWidth: 2 }]}>
               <Text style={sectionTitleStyle}>
-                {guide.icon} What to bring — {guide.type}
+                {guide.icon} {t("disaster.whatToBring")} — {disasterTypeLabel(activeGuide, t)}
               </Text>
               <Text style={{ color: "#6b7280", fontSize: 12, marginBottom: 10 }}>
-                Active threat: {selectedAlert.title}. {guide.summary}
+                {t("disaster.activeThreat")}: {selectedAlert.title}. {guide.summary}
               </Text>
               {guide.essentials.map((item, i) => (
                 <View key={i} style={{ flexDirection: "row", gap: 8, marginBottom: 6 }}>
@@ -348,19 +355,19 @@ export default function DisasterAlertScreen() {
                   <Text style={{ color: "#374151", fontSize: 13, flex: 1 }}>{item}</Text>
                 </View>
               ))}
-              <Text style={{ ...sectionTitleStyle, marginTop: 12, marginBottom: 6 }}>Safety tips</Text>
+              <Text style={{ ...sectionTitleStyle, marginTop: 12, marginBottom: 6 }}>{t("disaster.safetyTips")}</Text>
               {guide.safetyTips.map((tip, i) => (
                 <Text key={i} style={{ color: "#6b7280", fontSize: 12, marginBottom: 4 }}>• {tip}</Text>
               ))}
             </View>
 
             <View style={cardStyle}>
-              <Text style={sectionTitleStyle}>🏠 Nearest safe shelters</Text>
+              <Text style={sectionTitleStyle}>🏠 {t("disaster.nearestShelters")}</Text>
               <Text style={{ color: "#6b7280", fontSize: 12, marginBottom: 12 }}>
-                Evacuation shelters within {DISASTER_ALERT_RADIUS_KM} km (maps + Bangladesh centres)
+                {interpolate(t("disaster.sheltersDesc"), { km: String(DISASTER_ALERT_RADIUS_KM) })}
               </Text>
               {shelters.length === 0 ? (
-                <Text style={{ color: "#9ca3af", fontSize: 13 }}>Loading shelters…</Text>
+                <Text style={{ color: "#9ca3af", fontSize: 13 }}>{t("disaster.loadingShelters")}</Text>
               ) : (
                 shelters.map((s) => (
                   <TouchableOpacity
@@ -377,10 +384,10 @@ export default function DisasterAlertScreen() {
                     )}
                     <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 8 }}>
                       <Text style={{ color: "#7c3aed", fontSize: 12, fontWeight: "700" }}>
-                        📍 {formatDistance(s.distanceKm)} away
+                        📍 {interpolate(t("disaster.kmAway"), { distance: formatDistance(s.distanceKm) })}
                       </Text>
                       <Text style={{ color: "#16a34a", fontSize: 12, fontWeight: "700" }}>
-                        Open in Maps →
+                        {t("disaster.openInMaps")}
                       </Text>
                     </View>
                   </TouchableOpacity>
@@ -404,7 +411,7 @@ export default function DisasterAlertScreen() {
           }}
         >
           <Text style={{ color: "#fff", fontWeight: "800", fontSize: 15 }}>
-            🆘 Report emergency to operators
+            🆘 {t("disaster.reportEmergency")}
           </Text>
           <Text style={{ color: "#fff", fontSize: 18 }}>{showReportForm ? "▲" : "▼"}</Text>
         </TouchableOpacity>
@@ -413,7 +420,7 @@ export default function DisasterAlertScreen() {
           <>
             <View style={[cardStyle, !disasterType && { borderColor: "#c4b5fd" }]}>
               <Text style={sectionTitleStyle}>
-                Disaster Type <Text style={{ color: "#dc2626" }}>*</Text>
+                {t("disaster.disasterType")} <Text style={{ color: "#dc2626" }}>*</Text>
               </Text>
               {DISASTER_TYPES.map((type) => (
                 <TouchableOpacity
@@ -438,14 +445,14 @@ export default function DisasterAlertScreen() {
                     color: disasterType === type ? "#7c3aed" : "#374151",
                     fontWeight: disasterType === type ? "700" : "400",
                   }}>
-                    {type}
+                    {disasterTypeLabel(type, t)}
                   </Text>
                 </TouchableOpacity>
               ))}
             </View>
 
             <View style={cardStyle}>
-              <Text style={sectionTitleStyle}>Urgency Level</Text>
+              <Text style={sectionTitleStyle}>{t("disaster.urgencyLevel")}</Text>
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
                 {(["Critical", "High", "Moderate"] as Urgency[]).map((level) => (
                   <TouchableOpacity
@@ -461,7 +468,7 @@ export default function DisasterAlertScreen() {
                       color: urgency === level ? "#fff" : "#374151",
                       fontWeight: "700", fontSize: 13,
                     }}>
-                      {level}
+                      {urgencyLabel(level, t)}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -469,32 +476,32 @@ export default function DisasterAlertScreen() {
             </View>
 
             <View style={cardStyle}>
-              <Text style={sectionTitleStyle}>Situation Details</Text>
-              <Text style={labelStyle}>People affected (optional)</Text>
+              <Text style={sectionTitleStyle}>{t("disaster.situationDetails")}</Text>
+              <Text style={labelStyle}>{t("disaster.peopleAffected")}</Text>
               <TextInput
                 style={inputStyle}
-                placeholder="e.g. 5 families trapped"
+                placeholder={t("disaster.peopleAffectedPlaceholder")}
                 placeholderTextColor="#9ca3af"
                 value={peopleAffected}
                 onChangeText={setPeopleAffected}
               />
               <Text style={labelStyle}>
-                Description <Text style={{ color: "#dc2626" }}>*</Text>
+                {t("disaster.description")} <Text style={{ color: "#dc2626" }}>*</Text>
               </Text>
               <TextInput
                 style={[inputStyle, { minHeight: 90, textAlignVertical: "top" }]}
-                placeholder="Describe the disaster..."
+                placeholder={t("disaster.descriptionPlaceholder")}
                 placeholderTextColor="#9ca3af"
                 multiline
                 value={description}
                 onChangeText={setDescription}
               />
               <Text style={labelStyle}>
-                Contact Number <Text style={{ color: "#dc2626" }}>*</Text>
+                {t("disaster.contactNumber")} <Text style={{ color: "#dc2626" }}>*</Text>
               </Text>
               <TextInput
                 style={inputStyle}
-                placeholder="e.g. 01XXXXXXXXX"
+                placeholder={t("disaster.contactPlaceholder")}
                 placeholderTextColor="#9ca3af"
                 keyboardType="phone-pad"
                 value={contactNumber}
@@ -504,21 +511,21 @@ export default function DisasterAlertScreen() {
 
             <View style={cardStyle}>
               <Text style={sectionTitleStyle}>
-                Location <Text style={{ color: "#dc2626" }}>*</Text>
+                {t("disaster.location")} <Text style={{ color: "#dc2626" }}>*</Text>
               </Text>
               {location ? (
                 <View style={{
                   backgroundColor: "#f5f3ff", borderWidth: 1, borderColor: "#c4b5fd",
                   borderRadius: 12, padding: 14, marginTop: 8, marginBottom: 10,
                 }}>
-                  <Text style={{ color: "#5b21b6", fontWeight: "700", fontSize: 13 }}>✅ Location captured</Text>
+                  <Text style={{ color: "#5b21b6", fontWeight: "700", fontSize: 13 }}>✅ {t("common.locationCaptured")}</Text>
                   <Text style={{ color: "#4c1d95", fontSize: 12, lineHeight: 18, marginTop: 4 }}>
                     {location.address}
                   </Text>
                 </View>
               ) : (
                 <Text style={{ color: "#9ca3af", fontSize: 13, marginVertical: 10 }}>
-                  Share your live location for rescue teams
+                  {t("disaster.shareLocationHint")}
                 </Text>
               )}
               <TouchableOpacity
@@ -534,7 +541,7 @@ export default function DisasterAlertScreen() {
                   <ActivityIndicator color={location ? "#5b21b6" : "#fff"} />
                 ) : (
                   <Text style={{ color: location ? "#5b21b6" : "#fff", fontWeight: "700" }}>
-                    📍 {location ? "Update Location" : "Share My Location"}
+                    📍 {location ? t("disaster.updateLocation") : t("disaster.shareMyLocation")}
                   </Text>
                 )}
               </TouchableOpacity>
@@ -551,7 +558,7 @@ export default function DisasterAlertScreen() {
               {submitting ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={{ color: "#fff", fontWeight: "800", fontSize: 15 }}>Send Alert to Operators</Text>
+                <Text style={{ color: "#fff", fontWeight: "800", fontSize: 15 }}>{t("disaster.sendAlert")}</Text>
               )}
             </TouchableOpacity>
           </>
