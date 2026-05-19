@@ -10,16 +10,20 @@ const PLACEHOLDER_KEYS: Record<string, string> = {
   "Street, area, landmark": "report.placeholders.place",
   "Appearance, clothing, vehicle, direction of escape…": "report.placeholders.suspect",
   "Describe the crime in detail": "report.placeholders.crimeDesc",
-  "Number and severity of injuries": "report.placeholders.injuries",
-  "Describe the accident": "report.placeholders.accidentDesc",
-  "Size, spread, hazards…": "report.placeholders.fireDesc",
-  "Name, description, relationship if known": "report.placeholders.perpetrator",
-  "Describe harassment in detail": "report.placeholders.harassmentDesc",
-  "e.g. chest pain, unconscious, bleeding": "report.placeholders.symptoms",
-  "e.g. 45": "report.placeholders.patientAge",
-  "Allergies, medications, history…": "report.placeholders.medicalDetails",
-  "What they were wearing": "report.placeholders.clothing",
-  "Any other relevant information": "report.placeholders.circumstances",
+  "e.g. Car, bus, motorcycle": "report.placeholders.vehicleType",
+  "e.g. DHA-1234": "report.placeholders.plateNumber",
+  "e.g. 2": "report.placeholders.numInjured",
+  "Building name, floor, nearby landmark": "report.placeholders.firePlace",
+  "e.g. Colleague, neighbour, unknown": "report.placeholders.suspectRelation",
+  "Who needs help?": "report.placeholders.patientName",
+  "Describe symptoms and when they started": "report.placeholders.symptoms",
+  "Allergies, medicines taken, medical history if known": "report.placeholders.medicalDetails",
+  "e.g. 12": "report.placeholders.missingAge",
+  "e.g. Parent, sibling, friend": "report.placeholders.relationship",
+  "e.g. 18 Mar 2026, 4:00 PM": "report.placeholders.lastSeenDate",
+  "Address or landmark": "report.placeholders.lastSeenPlace",
+  "What were they wearing? Height, hair, marks?": "report.placeholders.clothing",
+  "1": "report.placeholders.numInjured",
 };
 
 const SHARED_FIELD_KEYS = new Set([
@@ -57,8 +61,11 @@ export function translateSelectOption(
   locale?: AppLocale
 ): string {
   const slug = optionSlug(option);
-  const key = `report.${category}.options.${slug}`;
-  return translate(key, locale, option);
+  const catHit = translate(`report.${category}.options.${slug}`, locale, "");
+  if (catHit && !catHit.startsWith("report.")) return catHit;
+  const commonHit = translate(`report.options.common.${slug}`, locale, "");
+  if (commonHit && !commonHit.startsWith("report.")) return commonHit;
+  return option;
 }
 
 export function translateReportType(
