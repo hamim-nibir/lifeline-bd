@@ -55,6 +55,8 @@ const NOTIF_ICONS: Record<string, string> = {
   panicAlert: "🆘",
   disasterWarning: "🌩️",
   disasterAlert: "🌩️",
+  citizenReport: "📋",
+  reportForwarded: "📤",
   verificationUpdate: "🪪",
   bloodRequest: "🩸",
   bloodRequestRejected: "❌",
@@ -228,6 +230,9 @@ export default function NotificationsScreen() {
         break;
       case "disasterAlert":
         router.push("/(feat)/operator-disaster-reports" as any);
+        break;
+      case "citizenReport":
+        router.push("/(feat)/operator-citizen-reports" as any);
         break;
       case "verificationUpdate":
         router.push("/(tabs)/profile" as any);
@@ -497,6 +502,7 @@ export default function NotificationsScreen() {
                     )}
 
                     {(notif.type === "accidentReport" ||
+                      notif.type === "citizenReport" ||
                       notif.type === "disasterAlert" ||
                       notif.type === "panicAlert" ||
                       notif.type === "bloodRequest" ||
@@ -515,7 +521,8 @@ export default function NotificationsScreen() {
                             {notif.type === "verificationUpdate" ? "👤" :
                               notif.type === "bloodRequest" ? "🩸" :
                               notif.type === "panicAlert" ? "🆘" :
-                              notif.type === "disasterAlert" ? "🌩️" : "→"
+                              notif.type === "disasterAlert" ? "🌩️" :
+                              notif.type === "citizenReport" ? "📋" : "→"
                             }
                           </Text>
                           <Text style={{ color: "#fff", fontSize: 12, fontWeight: "700" }}>
@@ -527,7 +534,9 @@ export default function NotificationsScreen() {
                                   ? "View Alert"
                                   : notif.type === "disasterAlert"
                                     ? "View Report"
-                                    : "Take Action"}
+                                    : notif.type === "citizenReport"
+                                      ? "Review & Forward"
+                                      : "Take Action"}
                           </Text>
                         </TouchableOpacity>
                       )}

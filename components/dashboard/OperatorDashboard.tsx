@@ -21,7 +21,8 @@ type Feature = {
 const OPERATOR_FEATURES: Feature[] = [
   { icon: "🔔", name: "Panic Alerts", desc: "View notifications", route: "/(feat)/operator-panic-alerts", color: "#fef2f2" },
   { icon: "🚔", name: "Police Reports", desc: "View police alerts", route: "/(feat)/operator-police-reports", color: "#f0f9ff" },
-  { icon: "📋", name: "Accident Reports", desc: "Review reports", route: "/(feat)/operator-accident-reports", color: "#fff7ed" },
+  { icon: "📋", name: "Citizen Reports", desc: "Also on Review tab", route: "/(feat)/operator-citizen-reports", color: "#fff7ed" },
+  { icon: "🚨", name: "Accident Reports", desc: "Legacy accident reports", route: "/(feat)/operator-accident-reports", color: "#fef3c7" },
   { icon: "🌩️", name: "Disaster Reports", desc: "Citizen disaster alerts", route: "/(feat)/operator-disaster-reports", color: "#ede9fe" },
   { icon: "⚡", name: "Unified Requests", desc: "View unified emergency requests", route: "/(feat)/operator-unified-requests", color: "#fefce8" },
   

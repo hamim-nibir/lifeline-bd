@@ -31,6 +31,7 @@ const TYPE_CONFIG: Record<string, { icon: string; label: string; color: string }
   policeReport:    { icon: "🚔", label: "Police Report",   color: "#1a4a4a" },
   accidentReport:  { icon: "🚨", label: "Accident Report", color: "#7c3aed" },
   disasterAlert:   { icon: "🌩️", label: "Disaster Alert",  color: "#5b21b6" },
+  citizenReport:   { icon: "📋", label: "Citizen Report",    color: "#c4451a" },
   unifiedRequest:  { icon: "⚡", label: "Unified Request", color: "#c4451a" },
 };
 
@@ -98,6 +99,24 @@ export default function HistoryScreen() {
           status: data.status ?? "pending",
           createdAt: data.createdAt,
           collection: "disasterAlerts",
+        });
+      });
+
+      // Fetch citizen reports (Report tab)
+      const cSnap = await getDocs(query(
+        collection(db, "citizenReports"),
+        where("uid", "==", uid),
+        orderBy("createdAt", "desc")
+      ));
+      cSnap.docs.forEach((d) => {
+        const data = d.data();
+        allItems.push({
+          id: d.id,
+          type: "citizenReport",
+          title: `${data.categoryLabel ?? "Report"} — ${data.status ?? "pending"}`,
+          status: data.status ?? "pending",
+          createdAt: data.createdAt,
+          collection: "citizenReports",
         });
       });
 
