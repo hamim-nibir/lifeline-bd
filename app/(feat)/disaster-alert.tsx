@@ -22,6 +22,7 @@ import {
   type PreparednessDisasterType,
 } from "../../constants/disasterPreparedness";
 import { DISASTER_ALERT_RADIUS_KM, formatDistance } from "../../utils/geo";
+import { useTranslation } from "../../hooks/useTranslation";
 
 type DisasterType = "Flood" | "Cyclone" | "Earthquake" | "Other" | null;
 
@@ -42,6 +43,7 @@ const SEVERITY_COLOR: Record<string, string> = {
 export default function DisasterAlertScreen() {
   const router = useRouter();
   const { user, nickname } = useAuthStore();
+  const { t } = useTranslation();
   const uid = user?.uid ?? "";
 
   const [coords, setCoords] = useState(getDefaultUserCoordinates());
@@ -251,9 +253,9 @@ export default function DisasterAlertScreen() {
           <Text style={{ color: "#fff", fontSize: 18, fontWeight: "700" }}>←</Text>
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={{ color: "#fff", fontSize: 20, fontWeight: "700" }}>Disaster Alert</Text>
+          <Text style={{ color: "#fff", fontSize: 20, fontWeight: "700" }}>{t("disaster.title")}</Text>
           <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: 12, marginTop: 1 }}>
-            Live warnings · shelters · emergency report
+            {t("disaster.liveWarnings")} · {t("disaster.shelters")} · {t("disaster.reportDisaster")}
           </Text>
         </View>
         <TouchableOpacity
@@ -263,7 +265,7 @@ export default function DisasterAlertScreen() {
             paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10,
           }}
         >
-          <Text style={{ color: "#fff", fontWeight: "700", fontSize: 12 }}>↻ Refresh</Text>
+          <Text style={{ color: "#fff", fontWeight: "700", fontSize: 12 }}>↻ {t("disaster.refresh")}</Text>
         </TouchableOpacity>
       </View>
 
