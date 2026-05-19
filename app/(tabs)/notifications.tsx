@@ -53,6 +53,8 @@ type RequesterDetails = {
 const NOTIF_ICONS: Record<string, string> = {
   accidentReport: "🚨",
   panicAlert: "🆘",
+  disasterWarning: "🌩️",
+  disasterAlert: "🌩️",
   verificationUpdate: "🪪",
   bloodRequest: "🩸",
   bloodRequestRejected: "❌",
@@ -223,6 +225,9 @@ export default function NotificationsScreen() {
         break;
       case "panicAlert":
         router.push("/(feat)/operator-panic-alerts" as any);
+        break;
+      case "disasterAlert":
+        router.push("/(feat)/operator-disaster-reports" as any);
         break;
       case "verificationUpdate":
         router.push("/(tabs)/profile" as any);
@@ -492,6 +497,7 @@ export default function NotificationsScreen() {
                     )}
 
                     {(notif.type === "accidentReport" ||
+                      notif.type === "disasterAlert" ||
                       notif.type === "panicAlert" ||
                       notif.type === "bloodRequest" ||
                       notif.type === "verificationUpdate") && (
@@ -508,7 +514,8 @@ export default function NotificationsScreen() {
                           <Text style={{ fontSize: 14 }}>
                             {notif.type === "verificationUpdate" ? "👤" :
                               notif.type === "bloodRequest" ? "🩸" :
-                              notif.type === "panicAlert" ? "🆘" : "→"
+                              notif.type === "panicAlert" ? "🆘" :
+                              notif.type === "disasterAlert" ? "🌩️" : "→"
                             }
                           </Text>
                           <Text style={{ color: "#fff", fontSize: 12, fontWeight: "700" }}>
@@ -518,7 +525,9 @@ export default function NotificationsScreen() {
                                 ? "View Request"
                                 : notif.type === "panicAlert"
                                   ? "View Alert"
-                                  : "Take Action"}
+                                  : notif.type === "disasterAlert"
+                                    ? "View Report"
+                                    : "Take Action"}
                           </Text>
                         </TouchableOpacity>
                       )}

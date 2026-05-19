@@ -54,6 +54,13 @@ const CITIZEN_FEATURES: Feature[] = [
     route: "/(feat)/find-donor",
     color: "#fdf4ff",
   },
+  {
+    icon: "🌩️",
+    name: "Disaster Alert",
+    desc: "Report disasters",
+    route: "/(feat)/disaster-alert",
+    color: "#ede9fe",
+  },
 ];
 
 export default function CitizenDashboard() {
