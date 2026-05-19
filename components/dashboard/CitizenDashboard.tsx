@@ -4,18 +4,14 @@ import {
   ScrollView,
   TouchableOpacity,
   Dimensions,
-  Animated, Easing,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { logoutUser } from "../../services/auth";
 import { useAuthStore } from "../../store/authStore";
-import AppHeader from "../../components/AppHeader";
-import Sidebar from "../../components/ui/Sidebar";   // ✅ added
-import { useRef, useState } from "react";
+import Logo from "../../components/ui/logo";
 
 const { width } = Dimensions.get("window");
 const CARD_SIZE = (width - 48 - 1) / 3;
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 type Feature = {
   icon: string;
@@ -41,53 +37,68 @@ const CITIZEN_FEATURES: Feature[] = [
     color: "#f0fdf4",
   },
   {
+    icon: "🔍",
+    name: "Find Donor",
+    desc: "Search nearby",
+    route: "/find-donor",
+    color: "#f0fdf4",
+  },
+  {
     icon: "📋",
-    name: "Blood Donation History",
+    name: "My History",
     desc: "Past donations",
-    route: "/(feat)/blood-donation-history",
+    route: "/history",
     color: "#eff6ff",
   },
   {
-    icon: "🩸",
+    icon: "🗺️",
     name: "Blood Banks",
     desc: "Nearby banks",
-    route: "/(feat)/find-donor",
+    route: "/blood-banks",
     color: "#fdf4ff",
+  },
+  {
+    icon: "🩸",
+    name: "Donate",
+    desc: "Register as donor",
+    route: "/donate",
+    color: "#fef2f2",
+  },
+  {
+    icon: "📞",
+    name: "Emergency",
+    desc: "Quick contact",
+    route: "/emergency",
+    color: "#fef2f2",
+  },
+  {
+    icon: "📊",
+    name: "Statistics",
+    desc: "Blood data",
+    route: "/statistics",
+    color: "#f0fdf4",
+  },
+  {
+    icon: "⚙️",
+    name: "Settings",
+    desc: "My account",
+    route: "/settings",
+    color: "#f8fafc",
+  },
+  {
+    icon: "📚",
+    name: "Training",
+    desc: "First aid & skills",
+    route: "/(feat)/training-resources",
+    color: "#eef2ff",
   },
 ];
 
 export default function CitizenDashboard() {
   const router = useRouter();
-  const { nickname } = useAuthStore();  // ✅ nickname already here
-
-  // ── Hooks ──
-  const headerAnim = useRef(new Animated.Value(0)).current;
-  const headerOpacity = useRef(new Animated.Value(1)).current;
-  const [sidebarVisible, setSidebarVisible] = useState(false);
-  const sidebarAnim = useRef(new Animated.Value(SCREEN_WIDTH)).current;
-
-  // ── Sidebar open/close ──
-  const openSidebar = () => {
-    setSidebarVisible(true);
-    Animated.timing(sidebarAnim, {
-      toValue: 0,
-      duration: 320,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    }).start();
-  };
-
-  const closeSidebar = () => {
-    Animated.timing(sidebarAnim, {
-      toValue: SCREEN_WIDTH,
-      duration: 280,
-      easing: Easing.in(Easing.cubic),
-      useNativeDriver: true,
-    }).start(() => setSidebarVisible(false));
-  };
+  const { nickname } = useAuthStore();
 
   const handleLogout = async () => {
-    closeSidebar();
     await logoutUser();
     router.replace("/login");
   };
@@ -99,12 +110,49 @@ export default function CitizenDashboard() {
   return (
     <View style={{ flex: 1, backgroundColor: "#f9fafb" }}>
 
-      {/* ── AppHeader ── */}
-      <AppHeader
-        headerAnim={headerAnim}
-        headerOpacity={headerOpacity}
-        onOpenSidebar={openSidebar}
-      />
+      {/* ── Header ── */}
+      <View style={{
+        backgroundColor: "#f97316",
+        paddingTop: 56,
+        paddingBottom: 24,
+        paddingHorizontal: 20,
+      }}>
+        {/* Top row — logo + logout */}
+        <View style={{
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 16,
+        }}>
+          {/* Logo — clickable → home */}
+          <Logo onPress={() => router.push("/(tabs)")} />
+
+          {/* Logout button */}
+          <TouchableOpacity
+            onPress={handleLogout}
+            style={{
+              backgroundColor: "rgba(255,255,255,0.2)",
+              paddingHorizontal: 14,
+              paddingVertical: 7,
+              borderRadius: 20,
+              borderWidth: 1,
+              borderColor: "rgba(255,255,255,0.35)",
+            }}
+          >
+            <Text style={{ color: "#fff", fontSize: 13, fontWeight: "600" }}>
+              Logout
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Dashboard title */}
+        <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 13, fontWeight: "500" }}>
+          Welcome back, {nickname ?? "User"}
+        </Text>
+        <Text style={{ color: "#fff", fontSize: 24, fontWeight: "700", marginTop: 2 }}>
+          Citizen Dashboard
+        </Text>
+      </View>
 
       {/* ── Scrollable content ── */}
       <ScrollView
@@ -122,8 +170,12 @@ export default function CitizenDashboard() {
           Features
         </Text>
 
-        {/* Feature grid */}
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+        {/* 3x3 Feature grid */}
+        <View style={{
+          flexDirection: "row",
+          flexWrap: "wrap",
+          gap: 8,
+        }}>
           {CITIZEN_FEATURES.map((feature, index) => (
             <TouchableOpacity
               key={index}
@@ -186,16 +238,6 @@ export default function CitizenDashboard() {
           </View>
         </View>
       </ScrollView>
-
-      {/* ✅ Sidebar component — replaces all the inline sidebar code */}
-      <Sidebar
-        visible={sidebarVisible}
-        sidebarAnim={sidebarAnim}
-        nickname={nickname ?? undefined}
-        onClose={closeSidebar}
-        onLogout={handleLogout}
-      />
-
     </View>
   );
 }

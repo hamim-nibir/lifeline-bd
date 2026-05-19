@@ -1,773 +1,187 @@
-import { useState, useEffect, useRef } from "react";
-import { useCallback } from "react";
-import { FlatList } from "react-native";
+import { useEffect, useState } from "react";
 import {
-  View, Text, ScrollView, TouchableOpacity,
-  Linking, Modal, TextInput, ActivityIndicator,
-  Alert, KeyboardAvoidingView, Platform,
-  Animated, Dimensions, Easing,
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useAuthStore } from "../../store/authStore";
-import { StatusBar } from "expo-status-bar";
 import { logoutUser } from "../../services/auth";
-import * as Location from "expo-location";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
-import { db } from "../../services/firebase";
-import AppHeader from "../../components/AppHeader";
-import EmergencyGrid from "../../components/features/EmergencyGrid";
-import Sidebar from "../../components/ui/Sidebar";
-
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-
-const ALL_SERVICES = [
-  { label: "Ambulance", icon: "🚑", color: "#fff5f5", accent: "#ef4444", route: "/(tabs)/police" },
-  { label: "Women Safety", icon: "🩷", color: "#fdf2f8", accent: "#ec4899", route: "/(feat)/women-safety" },
-  { label: "Police", icon: "🛡️", color: "#f0f4ff", accent: "#3b82f6", route: "/(tabs)/police" },
-  { label: "Fire Service", icon: "🔥", color: "#fff7ed", accent: "#f97316", route: "/(tabs)/police" },
-  { label: "Unified Service", icon: "⚡", color: "#fefce8", accent: "#eab308", route: null },
-];
-
-const UNIFIED_SERVICES = [
-  { value: "ambulance", label: "Ambulance", icon: "🚑" },
-  { value: "fire", label: "Fire Service", icon: "🔥" },
-  { value: "police", label: "Police", icon: "🛡️" },
-];
-
-const WEATHER_API_KEY = process.env.EXPO_PUBLIC_OPENWEATHER_API_KEY;
-const NEWS_API_KEY = process.env.EXPO_PUBLIC_NEWS_API_KEY;
-
-type WeatherData = {
-  temp: number;
-  feels_like: number;
-  description: string;
-  humidity: number;
-  wind_speed: number;
-  city: string;
-  icon: string;
-};
-
-type NewsItem = {
-  id: string;
-  title: string;
-  description: string;
-  url: string;
-  publishedAt: string;
-  source: string;
-};
-
-type CarouselItem =
-  | { type: "weather"; data: WeatherData }
-  | { type: "news"; data: NewsItem };
-
-const WEATHER_ICON_MAP: Record<string, string> = {
-  "01d": "☀️", "01n": "🌙",
-  "02d": "⛅", "02n": "⛅",
-  "03d": "☁️", "03n": "☁️",
-  "04d": "☁️", "04n": "☁️",
-  "09d": "🌧️", "09n": "🌧️",
-  "10d": "🌦️", "10n": "🌦️",
-  "11d": "⛈️", "11n": "⛈️",
-  "13d": "❄️", "13n": "❄️",
-  "50d": "🌫️", "50n": "🌫️",
-};
+import { StatusBar } from "expo-status-bar";
+import Logo from "../../components/ui/logo";
+import QuickEmergencyServices from "../../components/home/QuickEmergencyServices";
+import SOSButtonCard from "../../components/home/SOSButtonCard";
+import { getQuickEmergencyServices } from "../../services/emergencyServices";
+import { QuickEmergencyService } from "../../types";
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { user, nickname } = useAuthStore();
-  const uid = user?.uid ?? "";
-
-  // Search
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchVisible, setSearchVisible] = useState(false);
-  const searchAnim = useRef(new Animated.Value(0)).current;
-
-  // Sidebar
-  const [sidebarVisible, setSidebarVisible] = useState(false);
-  const sidebarAnim = useRef(new Animated.Value(SCREEN_WIDTH)).current;
-
-  // Unified modal
-  const [showUnified, setShowUnified] = useState(false);
-  const [selectedServices, setSelectedServices] = useState<string[]>([]);
-  const [emergencyType, setEmergencyType] = useState("");
-  const [locationText, setLocationText] = useState("");
-  const [description, setDescription] = useState("");
-  const [contactNumber, setContactNumber] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [fetchingLocation, setFetchingLocation] = useState(false);
-
-  // Entrance animations
-  const headerAnim = useRef(new Animated.Value(-40)).current;
-  const headerOpacity = useRef(new Animated.Value(0)).current;
-  const welcomeAnim = useRef(new Animated.Value(30)).current;
-  const welcomeOpacity = useRef(new Animated.Value(0)).current;
-  const sosAnim = useRef(new Animated.Value(30)).current;
-  const sosOpacity = useRef(new Animated.Value(0)).current;
-  const servicesAnim = useRef(new Animated.Value(30)).current;
-  const servicesOpacity = useRef(new Animated.Value(0)).current;
-  const cardAnims = useRef(ALL_SERVICES.map(() => new Animated.Value(40))).current;
-  const cardOpacities = useRef(ALL_SERVICES.map(() => new Animated.Value(0))).current;
-  const cardScales = useRef(ALL_SERVICES.map(() => new Animated.Value(0.92))).current;
-
-  // SOS pulse rings
-  const pulse1 = useRef(new Animated.Value(0)).current;
-  const pulse2 = useRef(new Animated.Value(0)).current;
-  const pulse3 = useRef(new Animated.Value(0)).current;
-  const sosBtnScale = useRef(new Animated.Value(1)).current;
-
-  const [carouselItems, setCarouselItems] = useState<CarouselItem[]>([]);
-  const [carouselLoading, setCarouselLoading] = useState(true);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const flatListRef = useRef<FlatList>(null);
-  const autoSlideRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(headerAnim, { toValue: 0, duration: 500, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
-      Animated.timing(headerOpacity, { toValue: 1, duration: 500, useNativeDriver: true }),
-    ]).start();
-
-    Animated.parallel([
-      Animated.timing(welcomeAnim, { toValue: 0, duration: 480, delay: 180, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
-      Animated.timing(welcomeOpacity, { toValue: 1, duration: 480, delay: 180, useNativeDriver: true }),
-    ]).start();
-
-    Animated.parallel([
-      Animated.timing(sosAnim, { toValue: 0, duration: 480, delay: 360, easing: Easing.out(Easing.back(1.2)), useNativeDriver: true }),
-      Animated.timing(sosOpacity, { toValue: 1, duration: 480, delay: 360, useNativeDriver: true }),
-    ]).start();
-
-    Animated.parallel([
-      Animated.timing(servicesAnim, { toValue: 0, duration: 400, delay: 480, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
-      Animated.timing(servicesOpacity, { toValue: 1, duration: 400, delay: 480, useNativeDriver: true }),
-    ]).start();
-
-    ALL_SERVICES.forEach((_, i) => {
-      Animated.parallel([
-        Animated.timing(cardAnims[i], { toValue: 0, duration: 440, delay: 560 + i * 90, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
-        Animated.timing(cardOpacities[i], { toValue: 1, duration: 440, delay: 560 + i * 90, useNativeDriver: true }),
-        Animated.spring(cardScales[i], { toValue: 1, delay: 560 + i * 90, useNativeDriver: true, tension: 80, friction: 8 }),
-      ]).start();
-    });
-
-    const runPulse = () => {
-      pulse1.setValue(0);
-      pulse2.setValue(0);
-      pulse3.setValue(0);
-      Animated.stagger(300, [
-        Animated.timing(pulse1, { toValue: 1, duration: 1800, easing: Easing.out(Easing.ease), useNativeDriver: true }),
-        Animated.timing(pulse2, { toValue: 1, duration: 1800, easing: Easing.out(Easing.ease), useNativeDriver: true }),
-        Animated.timing(pulse3, { toValue: 1, duration: 1800, easing: Easing.out(Easing.ease), useNativeDriver: true }),
-      ]).start(() => runPulse());
-    };
-    const timer = setTimeout(runPulse, 900);
-    return () => clearTimeout(timer);
-  }, []);
-
-  const toggleSearch = () => {
-    if (searchVisible) {
-      Animated.timing(searchAnim, { toValue: 0, duration: 250, useNativeDriver: false }).start(() => {
-        setSearchVisible(false);
-        setSearchQuery("");
-      });
-    } else {
-      setSearchVisible(true);
-      Animated.timing(searchAnim, { toValue: 1, duration: 280, useNativeDriver: false }).start();
-    }
-  };
-
-  const openSidebar = () => {
-    setSidebarVisible(true);
-    Animated.timing(sidebarAnim, { toValue: 0, duration: 320, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
-  };
-
-  const closeSidebar = () => {
-    Animated.timing(sidebarAnim, { toValue: SCREEN_WIDTH, duration: 280, easing: Easing.in(Easing.cubic), useNativeDriver: true }).start(() => setSidebarVisible(false));
-  };
+  const { nickname, accountType } = useAuthStore();
+  const [services, setServices] = useState<QuickEmergencyService[]>([]);
+  const [isLoadingServices, setIsLoadingServices] = useState(true);
 
   const handleLogout = async () => {
-    closeSidebar();
     await logoutUser();
     router.replace("/login");
   };
 
-  const filteredServices = ALL_SERVICES.filter((s) =>
-    s.label.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  useEffect(() => {
+    let isMounted = true;
 
-  const toggleService = (value: string) => {
-    setSelectedServices((prev) =>
-      prev.includes(value) ? prev.filter((s) => s !== value) : [...prev, value]
+    const loadServices = async () => {
+      try {
+        const data = await getQuickEmergencyServices();
+        if (isMounted) {
+          setServices(data);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingServices(false);
+        }
+      }
+    };
+
+    loadServices();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleServicePress = (service: QuickEmergencyService) => {
+    if (service.route) {
+      router.push(service.route as any);
+      return;
+    }
+
+    Alert.alert(
+      service.title,
+      `${service.description}\n\nHotline: ${service.hotline}`,
+      [{ text: "OK" }]
     );
   };
 
-  const handleFetchLocation = async () => {
-    setFetchingLocation(true);
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") { Alert.alert("Permission Denied", "Location permission is required."); return; }
-      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-      setLocationText(`${loc.coords.latitude.toFixed(5)}, ${loc.coords.longitude.toFixed(5)}`);
-    } catch { Alert.alert("Error", "Could not fetch location."); }
-    finally { setFetchingLocation(false); }
-  };
-
-  const fetchWeatherAndNews = useCallback(async (lat: number, lon: number) => {
-    setCarouselLoading(true);
-    const items: CarouselItem[] = [];
-
-    try {
-      const weatherRes = await fetch(
-        `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${WEATHER_API_KEY}&units=metric`
-      );
-      const weatherData = await weatherRes.json();
-      if (weatherData.main) {
-        items.push({
-          type: "weather",
-          data: {
-            temp: Math.round(weatherData.main.temp),
-            feels_like: Math.round(weatherData.main.feels_like),
-            description: weatherData.weather[0]?.description ?? "Clear",
-            humidity: weatherData.main.humidity,
-            wind_speed: weatherData.wind?.speed ?? 0,
-            city: weatherData.name ?? "Your Location",
-            icon: weatherData.weather[0]?.icon ?? "01d",
-          },
-        });
-      }
-    } catch (err) {
-      console.error("Weather fetch failed:", err);
-    }
-
-    try {
-      const newsRes = await fetch(
-        `https://newsapi.org/v2/everything?q=accident+Bangladesh+emergency&language=en&sortBy=publishedAt&pageSize=5&apiKey=${NEWS_API_KEY}`
-      );
-      const newsData = await newsRes.json();
-      if (newsData.articles) {
-        newsData.articles
-          .filter((a: any) => a.title && a.title !== "[Removed]")
-          .slice(0, 5)
-          .forEach((article: any, index: number) => {
-            items.push({
-              type: "news",
-              data: {
-                id: `news_${index}`,
-                title: article.title,
-                description: article.description ?? "",
-                url: article.url,
-                publishedAt: article.publishedAt,
-                source: article.source?.name ?? "News",
-              },
-            });
-          });
-      }
-    } catch (err) {
-      console.error("News fetch failed:", err);
-    }
-
-    setCarouselItems(items);
-    setCarouselLoading(false);
-  }, []);
-
-  const startAutoSlide = useCallback(() => {
-    if (autoSlideRef.current) clearInterval(autoSlideRef.current);
-    autoSlideRef.current = setInterval(() => {
-      setCurrentIndex((prev) => {
-        const next = carouselItems.length > 0 ? (prev + 1) % carouselItems.length : 0;
-        flatListRef.current?.scrollToIndex({ index: next, animated: true });
-        return next;
-      });
-    }, 4000);
-  }, [carouselItems.length]);
-
-  useEffect(() => {
-    if (carouselItems.length > 0) startAutoSlide();
-    return () => { if (autoSlideRef.current) clearInterval(autoSlideRef.current); };
-  }, [carouselItems.length, startAutoSlide]);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status === "granted") {
-          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-          fetchWeatherAndNews(loc.coords.latitude, loc.coords.longitude);
-        } else {
-          fetchWeatherAndNews(23.8103, 90.4125);
-        }
-      } catch {
-        fetchWeatherAndNews(23.8103, 90.4125);
-      }
-    })();
-  }, []);
-
-  const formatNewsTime = (dateStr: string) => {
-    try {
-      const date = new Date(dateStr);
-      return date.toLocaleDateString("en-BD", {
-        day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit",
-      });
-    } catch { return ""; }
-  };
-
-  const handleSubmitUnified = async () => {
-    if (selectedServices.length === 0) return Alert.alert("Missing field", "Please select at least one service.");
-    if (!emergencyType.trim()) return Alert.alert("Missing field", "Please enter the emergency type.");
-    if (!locationText.trim()) return Alert.alert("Missing field", "Please enter your location.");
-    if (!description.trim()) return Alert.alert("Missing field", "Please describe the emergency.");
-    if (!contactNumber.trim()) return Alert.alert("Missing field", "Please enter a contact number.");
-
-    setSubmitting(true);
-    try {
-      const reportRef = await addDoc(collection(db, "unifiedRequests"), {
-        uid, requestedBy: nickname ?? "Unknown",
-        services: selectedServices, emergencyType,
-        location: locationText, description,
-        contactNumber, status: "pending",
-        createdAt: serverTimestamp(),
-      });
-      await addDoc(collection(db, "notifications"), {
-        type: "unifiedRequest", reportId: reportRef.id,
-        title: "⚡ Unified Emergency Request",
-        body: `${nickname ?? "Someone"} requested ${selectedServices.join(", ")} services`,
-        reportedBy: nickname ?? "Unknown",
-        reportedByUid: uid, severity: "high",
-        read: false, createdAt: serverTimestamp(),
-      });
-      Alert.alert("✅ Request Submitted", "Your unified emergency request has been sent to operators.",
-        [{ text: "OK", onPress: () => {
-          setShowUnified(false);
-          setSelectedServices([]); setEmergencyType("");
-          setLocationText(""); setDescription(""); setContactNumber("");
-        }}]
-      );
-    } catch { Alert.alert("Error", "Submission failed. Please try again."); }
-    finally { setSubmitting(false); }
-  };
-
-  const searchBarHeight = searchAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 50] });
-  const searchBarOpacity = searchAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 1] });
-
-  const renderCarouselItem = ({ item }: { item: CarouselItem }) => {
-    if (item.type === "weather") {
-      const w = item.data;
-      const emoji = WEATHER_ICON_MAP[w.icon] ?? "🌤️";
-      return (
-        <View style={{
-          width: SCREEN_WIDTH - 32,
-          backgroundColor: "#1a4a4a",
-          borderRadius: 16, padding: 16, marginHorizontal: 0,
-          flexDirection: "row", alignItems: "center", gap: 12,
-        }}>
-          <View style={{
-            width: 64, height: 64, borderRadius: 32,
-            backgroundColor: "rgba(255,255,255,0.1)",
-            alignItems: "center", justifyContent: "center",
-          }}>
-            <Text style={{ fontSize: 32 }}>{emoji}</Text>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 11, fontWeight: "600" }}>
-              📍 {w.city}
-            </Text>
-            <Text style={{ color: "#fff", fontSize: 28, fontWeight: "900", marginTop: 2 }}>
-              {w.temp}°C
-            </Text>
-            <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 12, textTransform: "capitalize" }}>
-              {w.description}
-            </Text>
-            <View style={{ flexDirection: "row", gap: 12, marginTop: 6 }}>
-              <Text style={{ color: "rgba(255,255,255,0.65)", fontSize: 11 }}>💧 {w.humidity}%</Text>
-              <Text style={{ color: "rgba(255,255,255,0.65)", fontSize: 11 }}>💨 {w.wind_speed} m/s</Text>
-              <Text style={{ color: "rgba(255,255,255,0.65)", fontSize: 11 }}>🌡️ Feels {w.feels_like}°C</Text>
-            </View>
-          </View>
-        </View>
-      );
-    }
-
-    if (item.type === "news") {
-      const n = item.data;
-      return (
-        <TouchableOpacity
-          onPress={() => Linking.openURL(n.url)}
-          activeOpacity={0.85}
-          style={{
-            width: SCREEN_WIDTH - 32,
-            backgroundColor: "#fff",
-            borderRadius: 16, padding: 16, marginHorizontal: 0,
-            borderWidth: 1, borderColor: "#e8e4df",
-          }}
-        >
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8 }}>
-            <View style={{ backgroundColor: "#fef2f2", borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 }}>
-              <Text style={{ color: "#dc2626", fontSize: 10, fontWeight: "700" }}>🚨 EMERGENCY NEWS</Text>
-            </View>
-            <Text style={{ color: "#9ca3af", fontSize: 10 }}>{n.source}</Text>
-          </View>
-          <Text style={{ color: "#1a1a1a", fontSize: 13, fontWeight: "700", lineHeight: 18, marginBottom: 6 }} numberOfLines={2}>
-            {n.title}
-          </Text>
-          {n.description ? (
-            <Text style={{ color: "#6b7280", fontSize: 11, lineHeight: 16 }} numberOfLines={2}>
-              {n.description}
-            </Text>
-          ) : null}
-          <Text style={{ color: "#9ca3af", fontSize: 10, marginTop: 8 }}>
-            🕐 {formatNewsTime(n.publishedAt)} · Tap to read more
-          </Text>
-        </TouchableOpacity>
-      );
-    }
-
-    return null;
-  };
-
   return (
-    <View style={{ flex: 1, backgroundColor: "#f4f0eb" }}>
+    <ScrollView style={{ flex: 1, backgroundColor: "#f9fafb" }}>
       <StatusBar style="light" />
 
-      <AppHeader
-        headerAnim={headerAnim}
-        headerOpacity={headerOpacity}
-        onOpenSidebar={openSidebar}
-      />
-
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{ padding: 16, paddingBottom: 110 }}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* WELCOME CARD */}
-        <Animated.View style={{
-          transform: [{ translateY: welcomeAnim }],
-          opacity: welcomeOpacity,
-          backgroundColor: "#fff",
-          borderRadius: 20, padding: 18, marginBottom: 16,
-          borderWidth: 1, borderColor: "#e8e3dd",
-          shadowColor: "#000", shadowOpacity: 0.07, shadowRadius: 12, shadowOffset: { width: 0, height: 4 },
-          elevation: 4, borderStartColor: "#305762", borderStartWidth: 5,
+      {/* ── Header ── */}
+      <View style={{
+        backgroundColor: "#f97316",
+        paddingTop: 56,
+        paddingBottom: 24,
+        paddingHorizontal: 20,
+      }}>
+        {/* Top row — logo + logout */}
+        <View style={{
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 16,
         }}>
-          <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" }}>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 11, color: "#aaa", letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 6 }}>
-                Welcome to
-              </Text>
-              <Text style={{ fontSize: 36, fontWeight: "900", color: "#c4451a", lineHeight: 38, marginBottom: 2 }}>
-                অভয়
-              </Text>
-              <Text style={{ fontSize: 15, fontWeight: "800", color: "#111", letterSpacing: 0.3 }}>LifeLine BD</Text>
-              <View style={{ flexDirection: "row", alignItems: "center", marginTop: 10, gap: 8 }}>
-                <View style={{ width: 3, height: 20, backgroundColor: "#c4451a", borderRadius: 2 }} />
-                <Text style={{ fontSize: 12, color: "#305762", fontStyle: "italic" }}>Your Safety, Our Priority</Text>
-              </View>
-              <View style={{
-                marginTop: 12, flexDirection: "row", alignItems: "center", gap: 6,
-                backgroundColor: "#f0fdf4", borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5,
-                alignSelf: "flex-start", borderWidth: 1, borderColor: "#bbf7d0",
-              }}>
-                <View style={{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#22c55e" }} />
-                <Text style={{ fontSize: 11, color: "#166534", fontWeight: "700" }}>
-                  {nickname ?? "Member"} — Active
-                </Text>
-              </View>
-            </View>
-          </View>
+          {/* Logo — clickable → home */}
+          <Logo onPress={() => router.push("/(tabs)")} />
 
-          <Animated.View style={{ height: searchBarHeight, opacity: searchBarOpacity, overflow: "hidden", marginTop: searchVisible ? 14 : 0 }}>
-            <View style={{
-              flexDirection: "row", alignItems: "center",
-              backgroundColor: "#fafafa", borderRadius: 12,
-              paddingHorizontal: 14, paddingVertical: 10,
-              borderWidth: 1.5, borderColor: "#e8e3dd",
-            }}>
-              <Text style={{ fontSize: 14, color: "#bbb", marginRight: 8 }}>🔍</Text>
-              <TextInput
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                placeholder="Search emergency services..."
-                placeholderTextColor="#bbb"
-                style={{ flex: 1, fontSize: 13, color: "#111", padding: 0 }}
-                autoFocus={searchVisible}
-              />
-              {searchQuery.length > 0 && (
-                <TouchableOpacity onPress={() => setSearchQuery("")}>
-                  <Text style={{ fontSize: 14, color: "#bbb" }}>✕</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          </Animated.View>
-        </Animated.View>
-
-        {/* CAROUSEL */}
-        <View style={{ marginBottom: 20 }}>
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-            <Text style={{ fontSize: 14, fontWeight: "700", color: "#1a1a1a" }}>Live Updates</Text>
-            {carouselItems.length > 0 && (
-              <View style={{ flexDirection: "row", gap: 4 }}>
-                {carouselItems.map((_, i) => (
-                  <View key={i} style={{
-                    width: i === currentIndex ? 16 : 6,
-                    height: 6, borderRadius: 3,
-                    backgroundColor: i === currentIndex ? "#c4451a" : "#e8e4df",
-                  }} />
-                ))}
-              </View>
-            )}
-          </View>
-
-          {carouselLoading ? (
-            <View style={{
-              backgroundColor: "#fff", borderRadius: 16, height: 110,
-              alignItems: "center", justifyContent: "center",
-              borderWidth: 1, borderColor: "#e8e4df",
-            }}>
-              <ActivityIndicator color="#c4451a" />
-              <Text style={{ color: "#9ca3af", fontSize: 11, marginTop: 8 }}>Fetching weather & news...</Text>
-            </View>
-          ) : carouselItems.length === 0 ? (
-            <View style={{
-              backgroundColor: "#fff", borderRadius: 16, height: 110,
-              alignItems: "center", justifyContent: "center",
-              borderWidth: 1, borderColor: "#e8e4df",
-            }}>
-              <Text style={{ fontSize: 24, marginBottom: 6 }}>📡</Text>
-              <Text style={{ color: "#9ca3af", fontSize: 12 }}>No updates available</Text>
-            </View>
-          ) : (
-            <FlatList
-              ref={flatListRef}
-              data={carouselItems}
-              renderItem={renderCarouselItem}
-              keyExtractor={(_, i) => `carousel_${i}`}
-              horizontal pagingEnabled
-              showsHorizontalScrollIndicator={false}
-              scrollEnabled={false}
-              getItemLayout={(_, index) => ({
-                length: SCREEN_WIDTH - 32,
-                offset: (SCREEN_WIDTH - 32) * index,
-                index,
-              })}
-              onMomentumScrollEnd={(e) => {
-                const index = Math.round(e.nativeEvent.contentOffset.x / (SCREEN_WIDTH - 32));
-                setCurrentIndex(index);
-              }}
-            />
-          )}
+          {/* Logout button */}
+          <TouchableOpacity
+            onPress={handleLogout}
+            style={{
+              backgroundColor: "rgba(255,255,255,0.2)",
+              paddingHorizontal: 14,
+              paddingVertical: 7,
+              borderRadius: 20,
+              borderWidth: 1,
+              borderColor: "rgba(255,255,255,0.35)",
+            }}
+          >
+            <Text style={{ color: "#fff", fontSize: 13, fontWeight: "600" }}>
+              Logout
+            </Text>
+          </TouchableOpacity>
         </View>
 
-        {/* EMERGENCY SERVICES */}
-        <Animated.View style={{ transform: [{ translateY: servicesAnim }], opacity: servicesOpacity, marginBottom: 14 }}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <View style={{ width: 4, height: 18, backgroundColor: "#c4451a", borderRadius: 2 }} />
-            <Text style={{ fontSize: 15, fontWeight: "800", color: "#111", letterSpacing: 0.3 }}>
-              Emergency Services
+        {/* Dashboard title */}
+        <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 13, fontWeight: "500" }}>
+          Welcome back, {nickname ?? "User"}
+        </Text>
+        <Text style={{ color: "#fff", fontSize: 24, fontWeight: "700", marginTop: 2 }}>
+          Home
+        </Text>
+      </View>
+
+      <View style={{ padding: 20 }}>
+        {/* Welcome card */}
+        <View style={{
+          backgroundColor: "#fff",
+          borderRadius: 20,
+          padding: 20,
+          marginBottom: 16,
+          borderWidth: 1,
+          borderColor: "#f3f4f6",
+        }}>
+          <Text style={{ color: "#374151", fontSize: 16, fontWeight: "700" }}>
+            Hello, {nickname ?? "User"} 👋
+          </Text>
+          <Text style={{ color: "#9ca3af", fontSize: 13, marginTop: 4 }}>
+            You are logged in as{" "}
+            <Text style={{ color: "#dc2626", fontWeight: "600", textTransform: "capitalize" }}>
+              {accountType ?? "citizen"}
             </Text>
-          </View>
-        </Animated.View>
+          </Text>
+        </View>
 
-        {filteredServices.length === 0 ? (
-          <View style={{
-            backgroundColor: "#fff", borderRadius: 16, padding: 28,
-            alignItems: "center", borderWidth: 1, borderColor: "#e8e3dd", marginBottom: 16,
-          }}>
-            <Text style={{ fontSize: 32, marginBottom: 8 }}>🔍</Text>
-            <Text style={{ color: "#aaa", fontSize: 13 }}>No results for "{searchQuery}"</Text>
-          </View>
-        ) : (
-          <EmergencyGrid
-            services={filteredServices}
-            cardAnims={cardAnims}
-            cardOpacities={cardOpacities}
-            cardScales={cardScales}
-            onPress={(s) => {
-              if (s.label === "Unified Service") setShowUnified(true);
-              else if (s.route) router.push(s.route as any);
-            }}
-          />
-        )}
-
-        {/* SOS BUTTON */}
+        {/* Go to dashboard */}
         <TouchableOpacity
-          onPress={() => Alert.alert(
-            "🚨 Send SOS?",
-            "This will immediately alert all operators with your location.",
-            [
-              { text: "Cancel", style: "cancel" },
-              { text: "Send SOS", style: "destructive", onPress: () => Linking.openURL("tel:999") },
-            ]
-          )}
-          activeOpacity={0.85}
+          onPress={() => router.push("/(tabs)/dashboard")}
           style={{
-            position: "absolute", bottom: 50, right: 16,
-            width: 64, height: 64, borderRadius: 32,
-            backgroundColor: "#c4451a",
-            alignItems: "center", justifyContent: "center",
-            shadowColor: "#c4451a", shadowOpacity: 0.55, shadowRadius: 12,
-            shadowOffset: { width: 0, height: 4 }, elevation: 10,
+            backgroundColor: "#f97316",
+            borderRadius: 16,
+            paddingVertical: 16,
+            alignItems: "center",
+            marginBottom: 12,
           }}
         >
-          <Text style={{ fontSize: 35, color: "rgba(255,255,255,0.8)", width: 35, height: 40 }}>▲</Text>
-          <Text style={{ color: "#fffefe", fontSize: 10, fontWeight: "900" }}>SOS</Text>
+          <Text style={{ color: "#fff", fontWeight: "700", fontSize: 15 }}>
+            Go to My Dashboard →
+          </Text>
         </TouchableOpacity>
-      </ScrollView>
 
-      {/* ══ SIDEBAR ══ */}
-      <Sidebar
-        visible={sidebarVisible}
-        sidebarAnim={sidebarAnim}
-        nickname={nickname ?? undefined}
-        onClose={closeSidebar}
-        onLogout={handleLogout}
-      />
-
-      {/* ══ UNIFIED MODAL ══ */}
-      <Modal visible={showUnified} animationType="slide" transparent onRequestClose={() => setShowUnified(false)}>
-        <View style={{ flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.55)" }}>
-          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}>
-            <View style={{
-              backgroundColor: "#fff",
-              borderTopLeftRadius: 28, borderTopRightRadius: 28,
-              overflow: "hidden", maxHeight: "92%",
-            }}>
-              <View style={{
-                backgroundColor: "#c4451a",
-                paddingHorizontal: 20, paddingTop: 22, paddingBottom: 18,
-                flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-              }}>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-                  <View style={{
-                    width: 40, height: 40, borderRadius: 20,
-                    backgroundColor: "rgba(255,255,255,0.2)",
-                    alignItems: "center", justifyContent: "center",
-                  }}>
-                    <Text style={{ fontSize: 22 }}>⚡</Text>
-                  </View>
-                  <View>
-                    <Text style={{ color: "#fff", fontSize: 17, fontWeight: "900" }}>Unified Emergency</Text>
-                    <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 11, marginTop: 1 }}>
-                      Request multiple services at once
-                    </Text>
-                  </View>
-                </View>
-                <TouchableOpacity
-                  onPress={() => setShowUnified(false)}
-                  style={{
-                    width: 32, height: 32, borderRadius: 16,
-                    backgroundColor: "rgba(255,255,255,0.2)",
-                    alignItems: "center", justifyContent: "center",
-                  }}
-                >
-                  <Text style={{ color: "#fff", fontSize: 17, fontWeight: "700" }}>✕</Text>
-                </TouchableOpacity>
-              </View>
-
-              <ScrollView contentContainerStyle={{ padding: 20 }} showsVerticalScrollIndicator={false}>
-                <Text style={modalLabel}>Select Required Services <Text style={{ color: "#dc2626" }}>*</Text></Text>
-                <View style={{
-                  borderWidth: 1.5, borderColor: "#e8e3dd",
-                  borderRadius: 14, marginBottom: 16, overflow: "hidden",
-                }}>
-                  {UNIFIED_SERVICES.map((svc, index) => (
-                    <TouchableOpacity
-                      key={svc.value}
-                      onPress={() => toggleService(svc.value)}
-                      style={{
-                        flexDirection: "row", alignItems: "center", gap: 12, padding: 14,
-                        borderBottomWidth: index < UNIFIED_SERVICES.length - 1 ? 1 : 0,
-                        borderBottomColor: "#f3f4f6",
-                        backgroundColor: selectedServices.includes(svc.value) ? "#fdf0eb" : "#fff",
-                      }}
-                      activeOpacity={0.8}
-                    >
-                      <View style={{
-                        width: 22, height: 22, borderRadius: 4, borderWidth: 2,
-                        borderColor: selectedServices.includes(svc.value) ? "#c4451a" : "#d1d5db",
-                        backgroundColor: selectedServices.includes(svc.value) ? "#c4451a" : "#fff",
-                        alignItems: "center", justifyContent: "center",
-                      }}>
-                        {selectedServices.includes(svc.value) && (
-                          <Text style={{ color: "#fff", fontSize: 12, fontWeight: "900" }}>✓</Text>
-                        )}
-                      </View>
-                      <Text style={{ fontSize: 20 }}>{svc.icon}</Text>
-                      <Text style={{
-                        fontSize: 14, fontWeight: "600",
-                        color: selectedServices.includes(svc.value) ? "#c4451a" : "#111",
-                      }}>
-                        {svc.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-
-                <Text style={modalLabel}>Emergency Type <Text style={{ color: "#dc2626" }}>*</Text></Text>
-                <TextInput value={emergencyType} onChangeText={setEmergencyType}
-                  placeholder="e.g. Road accident, Building fire..."
-                  placeholderTextColor="#bbb" style={inputStyle} />
-
-                <Text style={modalLabel}>Your Location <Text style={{ color: "#dc2626" }}>*</Text></Text>
-                <View style={{ position: "relative", marginBottom: 14 }}>
-                  <TextInput value={locationText} onChangeText={setLocationText}
-                    placeholder="Enter location or tap 📍 to detect"
-                    placeholderTextColor="#bbb"
-                    style={[inputStyle, { paddingRight: 52, marginBottom: 0 }]} />
-                  <TouchableOpacity onPress={handleFetchLocation} disabled={fetchingLocation}
-                    style={{
-                      position: "absolute", right: 10, top: 10,
-                      width: 32, height: 32, borderRadius: 16,
-                      backgroundColor: "#fdf0eb",
-                      alignItems: "center", justifyContent: "center",
-                    }}>
-                    {fetchingLocation
-                      ? <ActivityIndicator size="small" color="#c4451a" />
-                      : <Text style={{ fontSize: 18 }}>📍</Text>}
-                  </TouchableOpacity>
-                </View>
-
-                <Text style={modalLabel}>Description <Text style={{ color: "#dc2626" }}>*</Text></Text>
-                <TextInput value={description} onChangeText={setDescription}
-                  placeholder="Describe the emergency situation..."
-                  placeholderTextColor="#bbb" multiline
-                  style={[inputStyle, { minHeight: 90, textAlignVertical: "top" }]} />
-
-                <Text style={modalLabel}>Contact Number <Text style={{ color: "#dc2626" }}>*</Text></Text>
-                <TextInput value={contactNumber} onChangeText={setContactNumber}
-                  placeholder="Your phone number"
-                  placeholderTextColor="#bbb" keyboardType="phone-pad" style={inputStyle} />
-
-                <View style={{ flexDirection: "row", gap: 10, marginBottom: 24 }}>
-                  <TouchableOpacity onPress={() => setShowUnified(false)}
-                    style={{
-                      flex: 1, borderWidth: 1.5, borderColor: "#e8e3dd",
-                      borderRadius: 12, paddingVertical: 14, alignItems: "center",
-                    }}>
-                    <Text style={{ fontSize: 14, fontWeight: "700", color: "#888" }}>Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={handleSubmitUnified} disabled={submitting}
-                    style={{
-                      flex: 2, backgroundColor: "#c4451a", borderRadius: 12,
-                      paddingVertical: 14, alignItems: "center", opacity: submitting ? 0.7 : 1,
-                      shadowColor: "#c4451a", shadowOpacity: 0.35, shadowRadius: 8, elevation: 4,
-                    }}>
-                    {submitting
-                      ? <ActivityIndicator color="#fff" />
-                      : <Text style={{ fontSize: 14, fontWeight: "800", color: "#fff", letterSpacing: 0.5 }}>Submit Emergency</Text>}
-                  </TouchableOpacity>
-                </View>
-              </ScrollView>
+        {accountType !== "operator" && (
+          <>
+            <View style={{ marginTop: 8, marginBottom: 8 }}>
+              <SOSButtonCard />
             </View>
-          </KeyboardAvoidingView>
-        </View>
-      </Modal>
-    </View>
+
+            {isLoadingServices ? (
+              <View
+                style={{
+                  backgroundColor: "#fff",
+                  borderRadius: 20,
+                  paddingVertical: 28,
+                  paddingHorizontal: 16,
+                  marginTop: 8,
+                  alignItems: "center",
+                  borderWidth: 1,
+                  borderColor: "#f3f4f6",
+                }}
+              >
+                <ActivityIndicator size="small" color="#f97316" />
+                <Text style={{ color: "#6b7280", fontSize: 13, marginTop: 10 }}>
+                  Loading quick emergency services...
+                </Text>
+              </View>
+            ) : (
+              <QuickEmergencyServices
+                services={services}
+                onServicePress={handleServicePress}
+              />
+            )}
+          </>
+        )}
+      </View>
+    </ScrollView>
   );
 }
-
-const modalLabel = { fontSize: 13, fontWeight: "700" as const, color: "#111", marginBottom: 6, marginTop: 2 };
-const inputStyle = {
-  borderWidth: 1.5, borderColor: "#e8e3dd", borderRadius: 12,
-  padding: 13, fontSize: 13, color: "#111",
-  backgroundColor: "#fafafa", marginBottom: 14,
-};
