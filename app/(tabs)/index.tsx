@@ -17,22 +17,24 @@ import { db } from "../../services/firebase";
 import AppHeader from "../../components/AppHeader";
 import EmergencyGrid from "../../components/features/EmergencyGrid";
 import Sidebar from "../../components/ui/Sidebar";
+import { useTranslation } from "../../hooks/useTranslation";
+import { interpolate } from "../../i18n/reportHelpers";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
-const ALL_SERVICES = [
-  { label: "Ambulance", icon: "🚑", color: "#fff5f5", accent: "#ef4444", route: "/(tabs)/police" },
-  { label: "Women Safety", icon: "🩷", color: "#fdf2f8", accent: "#ec4899", route: "/(feat)/women-safety" },
-  { label: "Police", icon: "🛡️", color: "#f0f4ff", accent: "#3b82f6", route: "/(tabs)/police" },
-  { label: "Fire Service", icon: "🔥", color: "#fff7ed", accent: "#f97316", route: "/(tabs)/police" },
-  { label: "Unified Service", icon: "⚡", color: "#fefce8", accent: "#eab308", route: null },
-];
+const SERVICE_DEFS = [
+  { labelKey: "home.ambulance", icon: "🚑", color: "#fff5f5", accent: "#ef4444", route: "/(tabs)/police" },
+  { labelKey: "home.womenSafety", icon: "🩷", color: "#fdf2f8", accent: "#ec4899", route: "/(feat)/women-safety" },
+  { labelKey: "home.police", icon: "🛡️", color: "#f0f4ff", accent: "#3b82f6", route: "/(tabs)/police" },
+  { labelKey: "home.fireService", icon: "🔥", color: "#fff7ed", accent: "#f97316", route: "/(tabs)/police" },
+  { labelKey: "home.unifiedService", icon: "⚡", color: "#fefce8", accent: "#eab308", route: null },
+] as const;
 
-const UNIFIED_SERVICES = [
-  { value: "ambulance", label: "Ambulance", icon: "🚑" },
-  { value: "fire", label: "Fire Service", icon: "🔥" },
-  { value: "police", label: "Police", icon: "🛡️" },
-];
+const UNIFIED_SERVICE_DEFS = [
+  { value: "ambulance", labelKey: "home.ambulance", icon: "🚑" },
+  { value: "fire", labelKey: "home.fireService", icon: "🔥" },
+  { value: "police", labelKey: "home.police", icon: "🛡️" },
+] as const;
 
 const WEATHER_API_KEY = process.env.EXPO_PUBLIC_OPENWEATHER_API_KEY;
 const NEWS_API_KEY = process.env.EXPO_PUBLIC_NEWS_API_KEY;
@@ -75,7 +77,18 @@ const WEATHER_ICON_MAP: Record<string, string> = {
 export default function HomeScreen() {
   const router = useRouter();
   const { user, nickname } = useAuthStore();
+  const { t } = useTranslation();
   const uid = user?.uid ?? "";
+
+  const ALL_SERVICES = SERVICE_DEFS.map((s) => ({
+    ...s,
+    label: t(s.labelKey),
+  }));
+
+  const UNIFIED_SERVICES = UNIFIED_SERVICE_DEFS.map((s) => ({
+    ...s,
+    label: t(s.labelKey),
+  }));
 
   // Search
   const [searchQuery, setSearchQuery] = useState("");
@@ -452,7 +465,7 @@ export default function HomeScreen() {
           <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" }}>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 11, color: "#aaa", letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 6 }}>
-                Welcome to
+                {t("home.welcomeTo")}
               </Text>
               <Text style={{ fontSize: 36, fontWeight: "900", color: "#c4451a", lineHeight: 38, marginBottom: 2 }}>
                 অভয়
@@ -460,7 +473,7 @@ export default function HomeScreen() {
               <Text style={{ fontSize: 15, fontWeight: "800", color: "#111", letterSpacing: 0.3 }}>LifeLine BD</Text>
               <View style={{ flexDirection: "row", alignItems: "center", marginTop: 10, gap: 8 }}>
                 <View style={{ width: 3, height: 20, backgroundColor: "#c4451a", borderRadius: 2 }} />
-                <Text style={{ fontSize: 12, color: "#305762", fontStyle: "italic" }}>Your Safety, Our Priority</Text>
+                <Text style={{ fontSize: 12, color: "#305762", fontStyle: "italic" }}>{t("home.tagline")}</Text>
               </View>
               <View style={{
                 marginTop: 12, flexDirection: "row", alignItems: "center", gap: 6,
@@ -469,7 +482,7 @@ export default function HomeScreen() {
               }}>
                 <View style={{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#22c55e" }} />
                 <Text style={{ fontSize: 11, color: "#166534", fontWeight: "700" }}>
-                  {nickname ?? "Member"} — Active
+                  {interpolate(t("home.activeMember"), { name: nickname ?? "Member" })}
                 </Text>
               </View>
             </View>
@@ -486,7 +499,7 @@ export default function HomeScreen() {
               <TextInput
                 value={searchQuery}
                 onChangeText={setSearchQuery}
-                placeholder="Search emergency services..."
+                placeholder={t("home.searchPlaceholder")}
                 placeholderTextColor="#bbb"
                 style={{ flex: 1, fontSize: 13, color: "#111", padding: 0 }}
                 autoFocus={searchVisible}
@@ -503,7 +516,7 @@ export default function HomeScreen() {
         {/* CAROUSEL */}
         <View style={{ marginBottom: 20 }}>
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-            <Text style={{ fontSize: 14, fontWeight: "700", color: "#1a1a1a" }}>Live Updates</Text>
+            <Text style={{ fontSize: 14, fontWeight: "700", color: "#1a1a1a" }}>{t("home.liveUpdates")}</Text>
             {carouselItems.length > 0 && (
               <View style={{ flexDirection: "row", gap: 4 }}>
                 {carouselItems.map((_, i) => (
@@ -524,7 +537,7 @@ export default function HomeScreen() {
               borderWidth: 1, borderColor: "#e8e4df",
             }}>
               <ActivityIndicator color="#c4451a" />
-              <Text style={{ color: "#9ca3af", fontSize: 11, marginTop: 8 }}>Fetching weather & news...</Text>
+              <Text style={{ color: "#9ca3af", fontSize: 11, marginTop: 8 }}>{t("home.fetchingUpdates")}</Text>
             </View>
           ) : carouselItems.length === 0 ? (
             <View style={{
@@ -533,7 +546,7 @@ export default function HomeScreen() {
               borderWidth: 1, borderColor: "#e8e4df",
             }}>
               <Text style={{ fontSize: 24, marginBottom: 6 }}>📡</Text>
-              <Text style={{ color: "#9ca3af", fontSize: 12 }}>No updates available</Text>
+              <Text style={{ color: "#9ca3af", fontSize: 12 }}>{t("home.noUpdates")}</Text>
             </View>
           ) : (
             <FlatList
@@ -562,7 +575,7 @@ export default function HomeScreen() {
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
             <View style={{ width: 4, height: 18, backgroundColor: "#c4451a", borderRadius: 2 }} />
             <Text style={{ fontSize: 15, fontWeight: "800", color: "#111", letterSpacing: 0.3 }}>
-              Emergency Services
+              {t("home.emergencyServices")}
             </Text>
           </View>
         </Animated.View>
@@ -573,7 +586,9 @@ export default function HomeScreen() {
             alignItems: "center", borderWidth: 1, borderColor: "#e8e3dd", marginBottom: 16,
           }}>
             <Text style={{ fontSize: 32, marginBottom: 8 }}>🔍</Text>
-            <Text style={{ color: "#aaa", fontSize: 13 }}>No results for "{searchQuery}"</Text>
+            <Text style={{ color: "#aaa", fontSize: 13 }}>
+              {interpolate(t("home.noSearchResults"), { query: searchQuery })}
+            </Text>
           </View>
         ) : (
           <EmergencyGrid
@@ -582,7 +597,7 @@ export default function HomeScreen() {
             cardOpacities={cardOpacities}
             cardScales={cardScales}
             onPress={(s) => {
-              if (s.label === "Unified Service") setShowUnified(true);
+              if (s.label === t("home.unifiedService")) setShowUnified(true);
               else if (s.route) router.push(s.route as any);
             }}
           />
@@ -645,7 +660,7 @@ export default function HomeScreen() {
                     <Text style={{ fontSize: 22 }}>⚡</Text>
                   </View>
                   <View>
-                    <Text style={{ color: "#fff", fontSize: 17, fontWeight: "900" }}>Unified Emergency</Text>
+                    <Text style={{ color: "#fff", fontSize: 17, fontWeight: "900" }}>{t("home.unifiedEmergency")}</Text>
                     <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 11, marginTop: 1 }}>
                       Request multiple services at once
                     </Text>
@@ -702,7 +717,7 @@ export default function HomeScreen() {
                   ))}
                 </View>
 
-                <Text style={modalLabel}>Emergency Type <Text style={{ color: "#dc2626" }}>*</Text></Text>
+                <Text style={modalLabel}>{t("home.emergencyType")} <Text style={{ color: "#dc2626" }}>*</Text></Text>
                 <TextInput value={emergencyType} onChangeText={setEmergencyType}
                   placeholder="e.g. Road accident, Building fire..."
                   placeholderTextColor="#bbb" style={inputStyle} />
@@ -753,7 +768,7 @@ export default function HomeScreen() {
                     }}>
                     {submitting
                       ? <ActivityIndicator color="#fff" />
-                      : <Text style={{ fontSize: 14, fontWeight: "800", color: "#fff", letterSpacing: 0.5 }}>Submit Emergency</Text>}
+                      : <Text style={{ fontSize: 14, fontWeight: "800", color: "#fff", letterSpacing: 0.5 }}>{t("home.submitEmergency")}</Text>}
                   </TouchableOpacity>
                 </View>
               </ScrollView>
