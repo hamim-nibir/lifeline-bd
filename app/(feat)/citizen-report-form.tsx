@@ -14,12 +14,24 @@ import {
 import { submitCitizenReport } from "../../services/citizenReportService";
 import EvidenceUploader from "../../components/reports/EvidenceUploader";
 import type { LocalEvidenceFile } from "../../services/reportEvidenceUpload";
+import { useTranslation } from "../../hooks/useTranslation";
+import {
+  translateFieldLabel,
+  translateFieldPlaceholder,
+  translateReportType,
+  translateSelectOption,
+  interpolate,
+} from "../../i18n/reportHelpers";
+import { useLanguageStore } from "../../store/languageStore";
 
 export default function CitizenReportFormScreen() {
   const router = useRouter();
   const { category } = useLocalSearchParams<{ category: string }>();
   const config = useMemo(() => getReportConfig(category ?? ""), [category]);
   const { user, nickname, accountType } = useAuthStore();
+  const { t } = useTranslation();
+  const locale = useLanguageStore((s) => s.locale);
+  const typeLabels = config ? translateReportType(config, locale) : null;
 
   useEffect(() => {
     if (accountType === "operator") {
@@ -49,9 +61,9 @@ export default function CitizenReportFormScreen() {
   if (!config) {
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 24 }}>
-        <Text style={{ fontSize: 16, fontWeight: "700", color: "#374151" }}>Invalid report type</Text>
+        <Text style={{ fontSize: 16, fontWeight: "700", color: "#374151" }}>{t("reportForm.invalidType")}</Text>
         <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 16 }}>
-          <Text style={{ color: "#c4451a", fontWeight: "700" }}>← Go back</Text>
+          <Text style={{ color: "#c4451a", fontWeight: "700" }}>{t("common.goBack")}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -66,7 +78,7 @@ export default function CitizenReportFormScreen() {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
-        Alert.alert("Permission Denied", "Location permission is required.");
+        Alert.alert(t("common.permissionDenied"), t("reportForm.locationRequired"));
         return;
       }
       const loc = await Location.getCurrentPositionAsync({
@@ -83,10 +95,10 @@ export default function CitizenReportFormScreen() {
       setLocation({
         latitude: loc.coords.latitude,
         longitude: loc.coords.longitude,
-        address: address || "Location captured",
+        address: address || t("common.locationCaptured"),
       });
     } catch {
-      Alert.alert("Error", "Could not get your location.");
+      Alert.alert(t("common.error"), t("reportForm.locationError"));
     } finally {
       setLocLoading(false);
     }
@@ -95,16 +107,21 @@ export default function CitizenReportFormScreen() {
   const validate = (): boolean => {
     for (const field of config.fields) {
       if (field.required && !values[field.key]?.trim()) {
-        Alert.alert("Required field", `Please fill in: ${field.label.replace(" *", "")}`);
+        Alert.alert(
+          t("reportForm.requiredField"),
+          interpolate(t("reportForm.fillIn"), {
+            field: translateFieldLabel(config.category as ReportCategory, field, locale).replace(" *", ""),
+          })
+        );
         return false;
       }
     }
     if (!contactNumber.trim()) {
-      Alert.alert("Required", "Please enter your contact number.");
+      Alert.alert(t("common.required"), t("reportForm.needContact"));
       return false;
     }
     if (!location) {
-      Alert.alert("Required", "Please share your current location.");
+      Alert.alert(t("common.required"), t("reportForm.needLocationShare"));
       return false;
     }
     return true;
@@ -128,13 +145,13 @@ export default function CitizenReportFormScreen() {
         evidenceFiles,
       });
       Alert.alert(
-        "✅ Report submitted",
-        "Your report has been sent to operators for review. They may forward it to police, hospital, ambulance, fire service, or volunteers.",
-        [{ text: "OK", onPress: () => router.back() }]
+        `✅ ${t("reportForm.submitSuccess")}`,
+        t("reportForm.submitSuccessBody"),
+        [{ text: t("common.ok"), onPress: () => router.back() }]
       );
     } catch (e) {
       console.error(e);
-      Alert.alert("Error", "Could not submit report. Please try again.");
+      Alert.alert(t("common.error"), t("reportForm.submitFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -142,13 +159,15 @@ export default function CitizenReportFormScreen() {
 
   const renderField = (field: ReportFieldDef) => {
     const val = values[field.key] ?? "";
+    const fieldLabel = translateFieldLabel(config.category as ReportCategory, field, locale);
+    const fieldPlaceholder = translateFieldPlaceholder(field.placeholder, locale);
 
     if (field.type === "radio" || field.type === "select") {
       const opts = field.options ?? [];
       return (
         <View key={field.key} style={{ marginBottom: 14 }}>
           <Text style={labelStyle}>
-            {field.label}
+            {fieldLabel}
             {field.required && <Text style={{ color: "#dc2626" }}> *</Text>}
           </Text>
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 6 }}>
@@ -170,7 +189,7 @@ export default function CitizenReportFormScreen() {
                   fontWeight: "700",
                   color: val === opt ? "#fff" : "#374151",
                 }}>
-                  {opt}
+                  {translateSelectOption(config.category as ReportCategory, opt, locale)}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -182,7 +201,7 @@ export default function CitizenReportFormScreen() {
     return (
       <View key={field.key} style={{ marginBottom: 14 }}>
         <Text style={labelStyle}>
-          {field.label}
+          {fieldLabel}
           {field.required && <Text style={{ color: "#dc2626" }}> *</Text>}
         </Text>
         <TextInput
@@ -190,7 +209,7 @@ export default function CitizenReportFormScreen() {
             inputStyle,
             (field.type === "textarea" || field.multiline) && { minHeight: 88, textAlignVertical: "top" },
           ]}
-          placeholder={field.placeholder ?? ""}
+          placeholder={fieldPlaceholder ?? ""}
           placeholderTextColor="#9ca3af"
           value={val}
           onChangeText={(t) => setField(field.key, t)}
@@ -226,10 +245,10 @@ export default function CitizenReportFormScreen() {
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={{ color: "#fff", fontSize: 20, fontWeight: "800" }}>
-            {config.icon} {config.title}
+            {config.icon} {typeLabels?.title ?? config.title}
           </Text>
           <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 12, marginTop: 2 }}>
-            {config.subtitle}
+            {typeLabels?.subtitle ?? config.subtitle}
           </Text>
         </View>
       </View>
@@ -240,13 +259,13 @@ export default function CitizenReportFormScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={cardStyle}>
-          <Text style={sectionTitle}>Your contact</Text>
+          <Text style={sectionTitle}>{t("reportForm.yourContact")}</Text>
           <Text style={labelStyle}>
-            Phone number <Text style={{ color: "#dc2626" }}>*</Text>
+            {t("reportForm.phoneNumber")} <Text style={{ color: "#dc2626" }}>*</Text>
           </Text>
           <TextInput
             style={inputStyle}
-            placeholder="01XXXXXXXXX"
+            placeholder={t("reportForm.contactPlaceholder")}
             placeholderTextColor="#9ca3af"
             keyboardType="phone-pad"
             value={contactNumber}
@@ -255,14 +274,14 @@ export default function CitizenReportFormScreen() {
         </View>
 
         <View style={cardStyle}>
-          <Text style={sectionTitle}>Report details</Text>
+          <Text style={sectionTitle}>{t("reportForm.reportDetails")}</Text>
           {config.fields.map(renderField)}
         </View>
 
         <View style={cardStyle}>
-          <Text style={sectionTitle}>Evidence (optional)</Text>
+          <Text style={sectionTitle}>{t("reportForm.evidenceOptional")}</Text>
           <Text style={{ color: "#6b7280", fontSize: 12, marginBottom: 12 }}>
-            Attach photos, videos, or documents related to this report
+            {t("reportForm.evidenceHint")}
           </Text>
           <EvidenceUploader
             files={evidenceFiles}
@@ -273,10 +292,10 @@ export default function CitizenReportFormScreen() {
 
         <View style={cardStyle}>
           <Text style={sectionTitle}>
-            Your location <Text style={{ color: "#dc2626" }}>*</Text>
+            {t("reportForm.location")} <Text style={{ color: "#dc2626" }}>*</Text>
           </Text>
           <Text style={{ color: "#6b7280", fontSize: 12, marginBottom: 10 }}>
-            Share where you are now (or nearest point to the incident)
+            {t("reportForm.locationHint")}
           </Text>
           {location && (
             <View style={{
@@ -306,7 +325,7 @@ export default function CitizenReportFormScreen() {
               <ActivityIndicator color={config.accent} />
             ) : (
               <Text style={{ color: location ? "#15803d" : "#fff", fontWeight: "700" }}>
-                📍 {location ? "Update location" : "Share my location"}
+                📍 {location ? t("reportForm.updateLocation") : t("reportForm.shareLocation")}
               </Text>
             )}
           </TouchableOpacity>
@@ -326,7 +345,7 @@ export default function CitizenReportFormScreen() {
           {submitting ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={{ color: "#fff", fontWeight: "800", fontSize: 16 }}>Submit report to operators</Text>
+            <Text style={{ color: "#fff", fontWeight: "800", fontSize: 16 }}>{t("reportForm.submitToOperators")}</Text>
           )}
         </TouchableOpacity>
       </ScrollView>

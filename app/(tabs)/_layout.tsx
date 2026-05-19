@@ -2,6 +2,7 @@ import { Tabs } from "expo-router";
 import { View, Text, Image } from "react-native";
 import { ImageSourcePropType } from "react-native";
 import { useAuthStore } from "../../store/authStore";
+import { useTranslation } from "../../hooks/useTranslation";
 
 type TabIconProps = {
   focused: boolean;
@@ -47,11 +48,13 @@ function TabIcon({ focused, icon, label }: TabIconProps) {
 
 function ReportTabIcon({ focused }: { focused: boolean }) {
   const accountType = useAuthStore((s) => s.accountType);
-  const label = accountType === "operator" ? "Review" : "Report";
+  const { t } = useTranslation();
+  const label = accountType === "operator" ? t("tabs.review") : t("tabs.report");
   return <TabIcon focused={focused} icon="📋" label={label} />;
 }
 
 export default function TabLayout() {
+  const { t } = useTranslation();
   return (
     <View style={{ flex: 1 }}>
       <Tabs
@@ -76,7 +79,7 @@ export default function TabLayout() {
               <TabIcon
                 focused={focused}
                 icon={require("../../assets/home.png")}
-                label="Home"
+                label={t("tabs.home")}
               />
             ),
           }}
@@ -93,7 +96,7 @@ export default function TabLayout() {
           name="dashboard"
           options={{
             tabBarIcon: ({ focused }) => (
-              <TabIcon focused={focused} icon="📊" label="Services" />
+              <TabIcon focused={focused} icon="📊" label={t("tabs.services")} />
             ),
           }}
         />
@@ -102,7 +105,7 @@ export default function TabLayout() {
           name="notifications"
           options={{
             tabBarIcon: ({ focused }) => (
-              <TabIcon focused={focused} icon="🔔" label="Notifications" />
+              <TabIcon focused={focused} icon="🔔" label={t("tabs.notifications")} />
             ),
           }}
         />

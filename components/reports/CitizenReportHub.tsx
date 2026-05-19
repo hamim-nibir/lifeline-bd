@@ -8,13 +8,17 @@ import { useFocusEffect } from "expo-router";
 import { collection, getDocs, query, where, orderBy } from "firebase/firestore";
 import { useAuthStore } from "../../store/authStore";
 import { db } from "../../services/firebase";
-import { REPORT_TYPES, REPORT_CATEGORY_LABELS } from "../../constants/citizenReportConfig";
+import { REPORT_TYPES } from "../../constants/citizenReportConfig";
+import { useTranslation } from "../../hooks/useTranslation";
+import { translateReportType } from "../../i18n/reportHelpers";
+import { useLanguageStore } from "../../store/languageStore";
 
 const { width } = Dimensions.get("window");
 const CARD_W = (width - 48 - 10) / 2;
 
 type MyReport = {
   id: string;
+  category: string;
   categoryLabel: string;
   status: string;
   createdAt: any;
@@ -29,6 +33,8 @@ const STATUS_COLOR: Record<string, string> = {
 export default function CitizenReportHub() {
   const router = useRouter();
   const { user } = useAuthStore();
+  const { t } = useTranslation();
+  const locale = useLanguageStore((s) => s.locale);
   const uid = user?.uid ?? "";
   const [myReports, setMyReports] = useState<MyReport[]>([]);
   const [loadingMine, setLoadingMine] = useState(false);
@@ -46,6 +52,7 @@ export default function CitizenReportHub() {
         const data = d.data();
         return {
           id: d.id,
+          category: data.category ?? "",
           categoryLabel: data.categoryLabel ?? "Report",
           status: data.status ?? "pending",
           createdAt: data.createdAt,
@@ -78,15 +85,16 @@ export default function CitizenReportHub() {
         borderWidth: 1,
         borderColor: "#fed7aa",
       }}>
-        <Text style={{ fontSize: 18, fontWeight: "800", color: "#9a3412" }}>Submit a report</Text>
+        <Text style={{ fontSize: 18, fontWeight: "800", color: "#9a3412" }}>{t("reportHub.title")}</Text>
         <Text style={{ fontSize: 13, color: "#c2410c", marginTop: 6, lineHeight: 20 }}>
-          Choose a category below. An operator will review your report and forward it to the right
-          institutions (police, hospital, ambulance, fire service, or volunteers).
+          {t("reportHub.subtitle")}
         </Text>
       </View>
 
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
-        {REPORT_TYPES.map((type) => (
+        {REPORT_TYPES.map((type) => {
+          const labels = translateReportType(type, locale);
+          return (
           <TouchableOpacity
             key={type.category}
             onPress={() =>
@@ -107,22 +115,23 @@ export default function CitizenReportHub() {
             activeOpacity={0.82}
           >
             <Text style={{ fontSize: 30, marginBottom: 6 }}>{type.icon}</Text>
-            <Text style={{ fontSize: 14, fontWeight: "800", color: "#111" }}>{type.title}</Text>
+            <Text style={{ fontSize: 14, fontWeight: "800", color: "#111" }}>{labels.title}</Text>
             <Text style={{ fontSize: 11, color: "#6b7280", marginTop: 4 }} numberOfLines={2}>
-              {type.subtitle}
+              {labels.subtitle}
             </Text>
           </TouchableOpacity>
-        ))}
+        );
+        })}
       </View>
 
       <View style={{ marginTop: 20 }}>
         <Text style={{ fontSize: 16, fontWeight: "800", color: "#111", marginBottom: 10 }}>
-          My submitted reports
+          {t("reportHub.myReports")}
         </Text>
         {loadingMine && myReports.length === 0 ? (
           <ActivityIndicator color="#c4451a" />
         ) : myReports.length === 0 ? (
-          <Text style={{ color: "#9ca3af", fontSize: 13 }}>You have not submitted any reports yet.</Text>
+          <Text style={{ color: "#9ca3af", fontSize: 13 }}>{t("reportHub.noReports")}</Text>
         ) : (
           myReports.map((r) => (
             <View
@@ -140,9 +149,14 @@ export default function CitizenReportHub() {
               }}
             >
               <View style={{ flex: 1 }}>
-                <Text style={{ fontWeight: "700", color: "#111", fontSize: 14 }}>{r.categoryLabel}</Text>
+                <Text style={{ fontWeight: "700", color: "#111", fontSize: 14 }}>
+                  {(() => {
+                    const cfg = REPORT_TYPES.find((x) => x.category === r.category);
+                    return cfg ? translateReportType(cfg, locale).title : r.categoryLabel;
+                  })()}
+                </Text>
                 <Text style={{ color: "#9ca3af", fontSize: 11, marginTop: 2 }}>
-                  {r.createdAt?.toDate?.()?.toLocaleString?.() ?? "Submitted"}
+                  {r.createdAt?.toDate?.()?.toLocaleString?.() ?? t("common.submitted")}
                 </Text>
               </View>
               <Text style={{
@@ -151,7 +165,7 @@ export default function CitizenReportHub() {
                 color: STATUS_COLOR[r.status] ?? "#6b7280",
                 textTransform: "capitalize",
               }}>
-                {r.status === "rejected" ? "discarded" : r.status}
+                {r.status === "rejected" ? t("common.discarded") : t(`status.${r.status}` as "status.pending")}
               </Text>
             </View>
           ))

@@ -3,8 +3,14 @@ import { useEffect } from "react";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { subscribeToAuthChanges, getUserProfile } from "../services/auth";
 import { useAuthStore } from "../store/authStore";
+import { useLanguageStore } from "../store/languageStore";
 
 export default function RootLayout() {
+  const hydrateLanguage = useLanguageStore((s) => s.hydrate);
+
+  useEffect(() => {
+    void hydrateLanguage();
+  }, [hydrateLanguage]);
   const router = useRouter();
   const segments = useSegments();
   const {

@@ -14,6 +14,7 @@ import {
 } from "firebase/firestore";
 
 import AppHeader from "../../components/AppHeader";
+import { useTranslation } from "../../hooks/useTranslation";
 import Sidebar from "../../components/ui/Sidebar";       // ✅ Fix 1 — added missing import
 import { logoutUser } from "../../services/auth";
 
@@ -67,7 +68,8 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 export default function NotificationsScreen() {
   const router = useRouter();
-  const { user, accountType, nickname } = useAuthStore(); // ✅ Fix 2 — added nickname
+  const { user, accountType, nickname } = useAuthStore();
+  const { t } = useTranslation();
   const uid = user?.uid ?? "";
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -328,7 +330,7 @@ export default function NotificationsScreen() {
       }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
           <Text style={{ fontSize: 18, fontWeight: "800", color: "#1f2937" }}>
-            Notifications
+            {t("notifications.title")}
           </Text>
           {unreadCount > 0 && (
             <View style={{
@@ -399,7 +401,7 @@ export default function NotificationsScreen() {
             }}>
               <Text style={{ fontSize: 48, marginBottom: 12 }}>🔔</Text>
               <Text style={{ color: "#374151", fontWeight: "700", fontSize: 16 }}>
-                No notifications
+                {t("notifications.empty")}
               </Text>
               <Text style={{
                 color: "#9ca3af", fontSize: 13,

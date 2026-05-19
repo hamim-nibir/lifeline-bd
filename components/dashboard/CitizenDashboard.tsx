@@ -11,7 +11,8 @@ import { logoutUser } from "../../services/auth";
 import { useAuthStore } from "../../store/authStore";
 import AppHeader from "../../components/AppHeader";
 import Sidebar from "../../components/ui/Sidebar";   // ✅ added
-import { useRef, useState } from "react";
+import { useRef, useState, useMemo } from "react";
+import { useTranslation } from "../../hooks/useTranslation";
 
 const { width } = Dimensions.get("window");
 const CARD_SIZE = (width - 48 - 1) / 3;
@@ -19,8 +20,8 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 type Feature = {
   icon: string;
-  name: string;
-  desc: string;
+  nameKey: string;
+  descKey: string;
   route: string;
   params?: Record<string, string>;
   color: string;
@@ -29,37 +30,37 @@ type Feature = {
 const CITIZEN_FEATURES: Feature[] = [
   {
     icon: "🔔",
-    name: "Safety Panic Mode",
-    desc: "Urgent response",
+    nameKey: "citizenDashboard.features.panic.name",
+    descKey: "citizenDashboard.features.panic.desc",
     route: "/(feat)/women-safety",
     color: "#fff7ed",
   },
   {
     icon: "⚠️",
-    name: "Accident",
-    desc: "Urgent report",
+    nameKey: "citizenDashboard.features.accident.name",
+    descKey: "citizenDashboard.features.accident.desc",
     route: "/(feat)/citizen-report-form",
     params: { category: "accident" },
     color: "#f0fdf4",
   },
   {
     icon: "📋",
-    name: "Blood Donation History",
-    desc: "Past donations",
+    nameKey: "citizenDashboard.features.bloodHistory.name",
+    descKey: "citizenDashboard.features.bloodHistory.desc",
     route: "/(feat)/blood-donation-history",
     color: "#eff6ff",
   },
   {
     icon: "🩸",
-    name: "Blood Banks",
-    desc: "Nearby banks",
+    nameKey: "citizenDashboard.features.bloodBanks.name",
+    descKey: "citizenDashboard.features.bloodBanks.desc",
     route: "/(feat)/find-donor",
     color: "#fdf4ff",
   },
   {
     icon: "🌩️",
-    name: "Disaster Alert",
-    desc: "Report disasters",
+    nameKey: "citizenDashboard.features.disaster.name",
+    descKey: "citizenDashboard.features.disaster.desc",
     route: "/(feat)/disaster-alert",
     color: "#ede9fe",
   },
@@ -67,7 +68,17 @@ const CITIZEN_FEATURES: Feature[] = [
 
 export default function CitizenDashboard() {
   const router = useRouter();
-  const { nickname } = useAuthStore();  // ✅ nickname already here
+  const { nickname } = useAuthStore();
+  const { t } = useTranslation();
+  const features = useMemo(
+    () =>
+      CITIZEN_FEATURES.map((f) => ({
+        ...f,
+        name: t(f.nameKey),
+        desc: t(f.descKey),
+      })),
+    [t]
+  );
 
   // ── Hooks ──
   const headerAnim = useRef(new Animated.Value(0)).current;
@@ -101,7 +112,7 @@ export default function CitizenDashboard() {
     router.replace("/login");
   };
 
-  const handleFeaturePress = (feature: Feature) => {
+  const handleFeaturePress = (feature: (typeof features)[number]) => {
     if (feature.params) {
       router.push({ pathname: feature.route, params: feature.params } as any);
     } else {
@@ -132,12 +143,12 @@ export default function CitizenDashboard() {
           marginBottom: 12,
           marginTop: 4,
         }}>
-          Features
+          {t("citizenDashboard.title")}
         </Text>
 
         {/* Feature grid */}
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-          {CITIZEN_FEATURES.map((feature, index) => (
+          {features.map((feature, index) => (
             <TouchableOpacity
               key={index}
               onPress={() => handleFeaturePress(feature)}

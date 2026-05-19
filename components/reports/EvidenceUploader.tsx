@@ -2,6 +2,8 @@ import { View, Text, TouchableOpacity, Image, ScrollView, Alert } from "react-na
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
 import type { LocalEvidenceFile } from "../../services/reportEvidenceUpload";
+import { useTranslation } from "../../hooks/useTranslation";
+import { interpolate } from "../../i18n/reportHelpers";
 
 type Props = {
   files: LocalEvidenceFile[];
@@ -10,6 +12,8 @@ type Props = {
 };
 
 export default function EvidenceUploader({ files, onChange, accent = "#c4451a" }: Props) {
+  const { t } = useTranslation();
+
   const addFiles = (newFiles: LocalEvidenceFile[]) => {
     onChange([...files, ...newFiles]);
   };
@@ -21,7 +25,7 @@ export default function EvidenceUploader({ files, onChange, accent = "#c4451a" }
   const pickGallery = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert("Permission needed", "Allow access to photos and videos to attach evidence.");
+      Alert.alert(t("common.required"), t("evidence.permissionPhotos"));
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -42,7 +46,7 @@ export default function EvidenceUploader({ files, onChange, accent = "#c4451a" }
   const pickCamera = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert("Permission needed", "Camera permission is required.");
+      Alert.alert(t("common.required"), t("evidence.permissionCamera"));
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
@@ -76,11 +80,11 @@ export default function EvidenceUploader({ files, onChange, accent = "#c4451a" }
   };
 
   const showPicker = () => {
-    Alert.alert("Attach evidence", "Add photos, videos, or documents to support your report", [
-      { text: "Photo / Video library", onPress: pickGallery },
-      { text: "Take photo / video", onPress: pickCamera },
-      { text: "Document (PDF, etc.)", onPress: pickDocument },
-      { text: "Cancel", style: "cancel" },
+    Alert.alert(t("evidence.attachTitle"), t("evidence.attachBody"), [
+      { text: t("evidence.gallery"), onPress: pickGallery },
+      { text: t("evidence.camera"), onPress: pickCamera },
+      { text: t("evidence.document"), onPress: pickDocument },
+      { text: t("common.cancel"), style: "cancel" },
     ]);
   };
 
@@ -99,16 +103,16 @@ export default function EvidenceUploader({ files, onChange, accent = "#c4451a" }
         }}
       >
         <Text style={{ fontSize: 28, marginBottom: 6 }}>📎</Text>
-        <Text style={{ fontWeight: "800", color: accent, fontSize: 14 }}>Attach photos, videos or files</Text>
+        <Text style={{ fontWeight: "800", color: accent, fontSize: 14 }}>{t("evidence.attachTitle")}</Text>
         <Text style={{ color: "#6b7280", fontSize: 12, marginTop: 4 }}>
-          Tap to upload evidence (optional)
+          {t("evidence.attachBody")}
         </Text>
       </TouchableOpacity>
 
       {files.length > 0 && (
         <View style={{ marginTop: 12 }}>
           <Text style={{ fontWeight: "700", color: "#374151", marginBottom: 8 }}>
-            {files.length} file(s) attached
+            {interpolate(t("evidence.files"), { count: String(files.length) })}
           </Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {files.map((f, i) => (

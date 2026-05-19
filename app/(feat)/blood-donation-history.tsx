@@ -6,6 +6,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { db } from "../../services/firebase";
+import { useTranslation } from "../../hooks/useTranslation";
 import { useAuthStore } from "../../store/authStore";
 import {
   collection, query, orderBy, getDocs,
@@ -83,6 +84,7 @@ const getNextEligibleDate = (lastDonationDate: any): string => {
 // ─── Main Screen ─────────────────────────────────────────
 export default function BloodDonationHistoryScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const { user, nickname } = useAuthStore();
   const uid = user?.uid ?? "";
 
@@ -337,12 +339,12 @@ export default function BloodDonationHistoryScreen() {
             }}
           >
             <Text style={{ color: "#fff", fontSize: 16, fontWeight: "700" }}>+</Text>
-            <Text style={{ color: "#fff", fontSize: 13, fontWeight: "600" }}>Add Record</Text>
+            <Text style={{ color: "#fff", fontSize: 13, fontWeight: "600" }}>{t("services.bloodHistory.addRecord")}</Text>
           </TouchableOpacity>
         </View>
 
         <Text style={{ color: "#fff", fontSize: 24, fontWeight: "700", marginTop: 2 }}>
-          Donation History
+          {t("services.bloodHistory.title")}
         </Text>
         <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 12, marginTop: 2 }}>
           {records.length} donation{records.length !== 1 ? "s" : ""} recorded
