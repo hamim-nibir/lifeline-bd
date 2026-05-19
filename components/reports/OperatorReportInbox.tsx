@@ -11,12 +11,16 @@ import { useAuthStore } from "../../store/authStore";
 import {
   FORWARD_OFFICES,
   REPORT_CATEGORY_LABELS,
+  REPORT_TYPES,
   getReportConfig,
   type ForwardOfficeId,
   type ReportCategory,
 } from "../../constants/citizenReportConfig";
 import { forwardCitizenReport, rejectCitizenReport } from "../../services/citizenReportService";
 import type { StoredEvidenceFile } from "../../services/reportEvidenceUpload";
+import { useTranslation } from "../../hooks/useTranslation";
+import { translateFieldLabel, translateOfficeLabel, translateReportType } from "../../i18n/reportHelpers";
+import { useLanguageStore } from "../../store/languageStore";
 
 const ACCENT = "#c4451a";
 
@@ -72,6 +76,8 @@ type Props = {
 export default function OperatorReportInbox({ embedded = false, showBackButton = false }: Props) {
   const router = useRouter();
   const { user, nickname } = useAuthStore();
+  const { t } = useTranslation();
+  const locale = useLanguageStore((s) => s.locale);
   const operatorUid = user?.uid ?? "";
   const operatorName = nickname ?? "Operator";
 
@@ -137,7 +143,7 @@ export default function OperatorReportInbox({ embedded = false, showBackButton =
   const handleForward = async () => {
     if (!selectedReport) return;
     if (selectedOffices.size === 0) {
-      Alert.alert("Select institutions", "Pick at least one institution to forward this report to.");
+      Alert.alert(t("operatorInbox.selectOffices"), t("operatorInbox.selectOfficesBody"));
       return;
     }
     setActionLoading(true);
@@ -153,12 +159,12 @@ export default function OperatorReportInbox({ embedded = false, showBackButton =
       setForwardModal(false);
       setSelectedReport(null);
       Alert.alert(
-        "Forwarded",
-        `Report sent to: ${offices.map((o) => o.label).join(", ")}.`
+        t("operatorInbox.forwarded"),
+        `${t("operatorInbox.forwardedBody")} ${offices.map((o) => translateOfficeLabel(o.id, o.label, locale)).join(", ")}.`
       );
       fetchReports();
     } catch {
-      Alert.alert("Error", "Could not forward report.");
+      Alert.alert(t("common.error"), t("operatorInbox.forwardError"));
     } finally {
       setActionLoading(false);
     }
@@ -167,7 +173,7 @@ export default function OperatorReportInbox({ embedded = false, showBackButton =
   const handleDiscard = async () => {
     if (!selectedReport) return;
     if (!discardReason.trim()) {
-      Alert.alert("Required", "Please enter a reason for discarding this report.");
+      Alert.alert(t("operatorInbox.discardReason"), t("operatorInbox.discardReasonBody"));
       return;
     }
     setActionLoading(true);
@@ -181,10 +187,10 @@ export default function OperatorReportInbox({ embedded = false, showBackButton =
       setDiscardModal(false);
       setDiscardReason("");
       setSelectedReport(null);
-      Alert.alert("Discarded", "Report has been discarded and will not be forwarded.");
+      Alert.alert(t("operatorInbox.discarded"), t("operatorInbox.discardedBody"));
       fetchReports();
     } catch {
-      Alert.alert("Error", "Could not discard report.");
+      Alert.alert(t("common.error"), t("operatorInbox.discardError"));
     } finally {
       setActionLoading(false);
     }
@@ -192,7 +198,7 @@ export default function OperatorReportInbox({ embedded = false, showBackButton =
 
   const renderAttachments = (attachments?: StoredEvidenceFile[]) => {
     if (!attachments?.length) {
-      return <Text style={{ color: "#9ca3af", fontSize: 12, marginTop: 8 }}>No files attached</Text>;
+      return <Text style={{ color: "#9ca3af", fontSize: 12, marginTop: 8 }}>{t("operatorInbox.noAttachments")}</Text>;
     }
     return (
       <View style={{ marginTop: 12 }}>
@@ -242,7 +248,9 @@ export default function OperatorReportInbox({ embedded = false, showBackButton =
       if (!v?.trim()) return null;
       return (
         <View key={f.key} style={{ marginBottom: 8 }}>
-          <Text style={{ fontSize: 11, color: "#9ca3af", fontWeight: "600" }}>{f.label.toUpperCase()}</Text>
+          <Text style={{ fontSize: 11, color: "#9ca3af", fontWeight: "600" }}>
+            {translateFieldLabel(report.category, f, locale).toUpperCase()}
+          </Text>
           <Text style={{ fontSize: 13, color: "#374151", lineHeight: 18 }}>{v}</Text>
         </View>
       );
@@ -253,9 +261,9 @@ export default function OperatorReportInbox({ embedded = false, showBackButton =
     <View style={{ paddingHorizontal: 16, paddingTop: embedded ? 12 : 0, paddingBottom: 8 }}>
       {embedded && (
         <>
-          <Text style={{ fontSize: 18, fontWeight: "800", color: "#111" }}>Report review queue</Text>
+          <Text style={{ fontSize: 18, fontWeight: "800", color: "#111" }}>{t("operatorInbox.title")}</Text>
           <Text style={{ fontSize: 13, color: "#6b7280", marginTop: 4, marginBottom: 12, lineHeight: 20 }}>
-            Review citizen submissions, then forward to institutions or discard.
+            {t("operatorInbox.subtitle")}
           </Text>
         </>
       )}
@@ -295,7 +303,7 @@ export default function OperatorReportInbox({ embedded = false, showBackButton =
             <Text style={{ color: "#fff", fontSize: 18, fontWeight: "700" }}>←</Text>
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={{ color: "#fff", fontSize: 20, fontWeight: "700" }}>Citizen Reports</Text>
+            <Text style={{ color: "#fff", fontSize: 20, fontWeight: "700" }}>{t("operatorInbox.title")}</Text>
             <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: 12, marginTop: 1 }}>
               {pendingCount} pending · {reports.length} total
             </Text>
@@ -373,7 +381,12 @@ export default function OperatorReportInbox({ embedded = false, showBackButton =
                       <Text style={{ fontSize: 22 }}>{CATEGORY_ICON[report.category] ?? "📋"}</Text>
                       <View style={{ flex: 1 }}>
                         <Text style={{ color: "#1f2937", fontWeight: "700", fontSize: 15 }}>
-                          {report.categoryLabel || REPORT_CATEGORY_LABELS[report.category]}
+                          {(() => {
+                            const cfg = REPORT_TYPES.find((x) => x.category === report.category);
+                            return cfg
+                              ? translateReportType(cfg, locale).title
+                              : report.categoryLabel || REPORT_CATEGORY_LABELS[report.category];
+                          })()}
                         </Text>
                         <Text style={{ color: "#9ca3af", fontSize: 12, marginTop: 2 }}>
                           {report.reportedBy} · {formatTime(report.createdAt)}
@@ -396,7 +409,7 @@ export default function OperatorReportInbox({ embedded = false, showBackButton =
                         borderColor: st.border,
                       }}>
                         <Text style={{ fontSize: 10, fontWeight: "700", color: st.text, textTransform: "capitalize" }}>
-                          {report.status === "rejected" ? "discarded" : report.status}
+                          {report.status === "rejected" ? t("common.discarded") : t(`status.${report.status}` as "status.pending")}
                         </Text>
                       </View>
                     </View>
@@ -583,7 +596,7 @@ export default function OperatorReportInbox({ embedded = false, showBackButton =
                 fontSize: 14, color: "#1f2937", backgroundColor: "#f9fafb",
               }}
               multiline
-              placeholder="Reason for discarding..."
+              placeholder={t("operatorInbox.discardPlaceholder")}
               placeholderTextColor="#9ca3af"
               value={discardReason}
               onChangeText={setDiscardReason}
