@@ -22,6 +22,7 @@ type Feature = {
   name: string;
   desc: string;
   route: string;
+  params?: Record<string, string>;
   color: string;
 };
 
@@ -37,7 +38,8 @@ const CITIZEN_FEATURES: Feature[] = [
     icon: "⚠️",
     name: "Accident",
     desc: "Urgent report",
-    route: "/(feat)/accident-report",
+    route: "/(feat)/citizen-report-form",
+    params: { category: "accident" },
     color: "#f0fdf4",
   },
   {
@@ -99,8 +101,12 @@ export default function CitizenDashboard() {
     router.replace("/login");
   };
 
-  const handleFeaturePress = (route: string) => {
-    router.push(route as any);
+  const handleFeaturePress = (feature: Feature) => {
+    if (feature.params) {
+      router.push({ pathname: feature.route, params: feature.params } as any);
+    } else {
+      router.push(feature.route as any);
+    }
   };
 
   return (
@@ -134,7 +140,7 @@ export default function CitizenDashboard() {
           {CITIZEN_FEATURES.map((feature, index) => (
             <TouchableOpacity
               key={index}
-              onPress={() => handleFeaturePress(feature.route)}
+              onPress={() => handleFeaturePress(feature)}
               style={{
                 width: CARD_SIZE,
                 backgroundColor: feature.color,

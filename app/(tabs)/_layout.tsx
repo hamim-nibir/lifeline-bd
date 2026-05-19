@@ -1,6 +1,7 @@
 import { Tabs } from "expo-router";
 import { View, Text, Image } from "react-native";
 import { ImageSourcePropType } from "react-native";
+import { useAuthStore } from "../../store/authStore";
 
 type TabIconProps = {
   focused: boolean;
@@ -44,6 +45,12 @@ function TabIcon({ focused, icon, label }: TabIconProps) {
   );
 }
 
+function ReportTabIcon({ focused }: { focused: boolean }) {
+  const accountType = useAuthStore((s) => s.accountType);
+  const label = accountType === "operator" ? "Review" : "Report";
+  return <TabIcon focused={focused} icon="📋" label={label} />;
+}
+
 export default function TabLayout() {
   return (
     <View style={{ flex: 1 }}>
@@ -78,9 +85,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="report"
           options={{
-            tabBarIcon: ({ focused }) => (
-              <TabIcon focused={focused} icon="📋" label="Report" />
-            ),
+            tabBarIcon: ({ focused }) => <ReportTabIcon focused={focused} />,
           }}
         />
 
