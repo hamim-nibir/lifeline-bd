@@ -2,6 +2,8 @@ import {
   View, Text, TouchableOpacity, Animated, Dimensions,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { useTranslation } from "../../hooks/useTranslation";
+import LanguageSwitcher from "../LanguageSwitcher";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -15,25 +17,26 @@ type Props = {
 
 export default function Sidebar({ visible, sidebarAnim, nickname, onClose, onLogout }: Props) {
   const router = useRouter();
+  const { t } = useTranslation();
 
   if (!visible) return null;
 
   const menuItems = [
     {
       icon: "👤",
-      label: "Profile",
+      label: t("sidebar.profile"),
       bg: "#fdf0eb",
       onPress: () => { onClose(); router.push("/(tabs)/profile" as any); },
     },
     {
       icon: "📋",
-      label: "History",
+      label: t("sidebar.history"),
       bg: "#f0f4ff",
       onPress: () => { onClose(); router.push("/(feat)/history" as any); },
     },
     {
       icon: "💬",
-      label: "Messages",
+      label: t("sidebar.messages"),
       bg: "#f0fdf4",
       onPress: () => { onClose(); router.push("/(feat)/chat-list" as any); },
     },
@@ -105,6 +108,8 @@ export default function Sidebar({ visible, sidebarAnim, nickname, onClose, onLog
           </View>
         </View>
 
+        <LanguageSwitcher compact />
+
         {/* Menu items */}
         {menuItems.map((item, i) => (
           <TouchableOpacity
@@ -150,7 +155,7 @@ export default function Sidebar({ visible, sidebarAnim, nickname, onClose, onLog
           }}>
             <Text style={{ fontSize: 18 }}>🚪</Text>
           </View>
-          <Text style={{ color: "#dc2626", fontSize: 15, fontWeight: "700" }}>Logout</Text>
+          <Text style={{ color: "#dc2626", fontSize: 15, fontWeight: "700" }}>{t("common.logout")}</Text>
         </TouchableOpacity>
       </Animated.View>
     </View>

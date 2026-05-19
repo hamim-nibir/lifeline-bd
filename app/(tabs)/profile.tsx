@@ -15,6 +15,8 @@ import {
   TrackingAccuracy, VerificationStatus,
 } from "../../types";
 import Logo from "../../components/ui/logo";
+import LanguageSwitcher from "../../components/LanguageSwitcher";
+import { useTranslation } from "../../hooks/useTranslation";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { db } from "../../services/firebase";
 import {
@@ -36,6 +38,7 @@ type EmergencyContact = {
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, nickname, accountType } = useAuthStore();
+  const { t } = useTranslation();
 
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -318,14 +321,14 @@ export default function ProfileScreen() {
               borderWidth: 1, borderColor: "rgba(255,255,255,0.35)",
             }}
           >
-            <Text style={{ color: "#fff", fontSize: 13, fontWeight: "600" }}>Logout</Text>
+            <Text style={{ color: "#fff", fontSize: 13, fontWeight: "600" }}>{t("common.logout")}</Text>
           </TouchableOpacity>
         </View>
         <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 13, fontWeight: "500" }}>
           Welcome back, {nickname ?? "User"}
         </Text>
         <Text style={{ color: "#fff", fontSize: 24, fontWeight: "700", marginTop: 2 }}>
-          Profile Settings
+          {t("profile.title")}
         </Text>
       </View>
 
@@ -341,6 +344,7 @@ export default function ProfileScreen() {
           />
         }
       >
+        <LanguageSwitcher />
         <VerificationBadge />
 
         {/* ── Personal Information ── */}
