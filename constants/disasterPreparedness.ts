@@ -1,11 +1,4 @@
-export type PreparednessDisasterType =
-  | "Flood"
-  | "Cyclone"
-  | "Earthquake"
-  | "Landslide"
-  | "Fire (Wildfire)"
-  | "Drought"
-  | "Other";
+export type PreparednessDisasterType = "Flood" | "Cyclone" | "Earthquake" | "Other";
 
 export type PreparednessGuide = {
   type: PreparednessDisasterType;
@@ -70,54 +63,6 @@ export const PREPAREDNESS_GUIDES: Record<PreparednessDisasterType, PreparednessG
       "Use stairs, not elevators.",
     ],
   },
-  Landslide: {
-    type: "Landslide",
-    icon: "⛰️",
-    summary: "Leave hillside or slope areas immediately.",
-    essentials: [
-      "Water & dry food",
-      "Medicines & first-aid",
-      "Torch & rain gear",
-      "Documents & phone charger",
-      "Rope & whistle",
-    ],
-    safetyTips: [
-      "Move to stable, flat ground away from slopes.",
-      "Watch for cracks in ground or new water springs on hills.",
-      "Avoid the path of previous landslides.",
-    ],
-  },
-  "Fire (Wildfire)": {
-    type: "Fire (Wildfire)",
-    icon: "🔥",
-    summary: "Evacuate upwind and toward open areas or designated shelters.",
-    essentials: [
-      "N95 masks or wet cloth for smoke",
-      "Water & snacks",
-      "Medicines & first-aid",
-      "Important documents",
-      "Long sleeves & closed shoes",
-    ],
-    safetyTips: [
-      "Close windows if staying temporarily; leave if smoke is heavy.",
-      "Do not return until authorities say it is safe.",
-    ],
-  },
-  Drought: {
-    type: "Drought",
-    icon: "☀️",
-    summary: "Conserve water and monitor health in extreme heat.",
-    essentials: [
-      "Stored drinking water",
-      "ORS & medicines",
-      "Electrolyte drinks",
-      "Light cotton clothing & hat",
-    ],
-    safetyTips: [
-      "Avoid outdoor work during peak heat hours.",
-      "Watch for signs of dehydration in children and elderly.",
-    ],
-  },
   Other: {
     type: "Other",
     icon: "⚠️",
@@ -136,18 +81,21 @@ export const PREPAREDNESS_GUIDES: Record<PreparednessDisasterType, PreparednessG
   },
 };
 
-/** Map external API event codes to our preparedness types */
+const SKIP_EVENT_PATTERN =
+  /LANDSLIDE|WILDFIRE|DROUGHT|VOLCANO|\bWF\b|\bDR\b|\bLS\b|\bVO\b/i;
+
+/** Map API event codes to supported preparedness types; returns null to skip event */
 export function mapEventToPreparednessType(
   eventType: string,
   title = ""
-): PreparednessDisasterType {
-  const t = `${eventType} ${title}`.toUpperCase();
-  if (t.includes("FL") || t.includes("FLOOD")) return "Flood";
-  if (t.includes("TC") || t.includes("CYCLONE") || t.includes("STORM") || t.includes("HURRICANE"))
+): PreparednessDisasterType | null {
+  const t = `${eventType} ${title}`;
+  if (SKIP_EVENT_PATTERN.test(t)) return null;
+
+  const u = t.toUpperCase();
+  if (u.includes("FL") || u.includes("FLOOD")) return "Flood";
+  if (u.includes("TC") || u.includes("CYCLONE") || u.includes("STORM") || u.includes("HURRICANE"))
     return "Cyclone";
-  if (t.includes("EQ") || t.includes("EARTHQUAKE") || t.includes("SEISMIC")) return "Earthquake";
-  if (t.includes("LS") || t.includes("LANDSLIDE")) return "Landslide";
-  if (t.includes("WF") || t.includes("FIRE") || t.includes("WILDFIRE")) return "Fire (Wildfire)";
-  if (t.includes("DR") || t.includes("DROUGHT")) return "Drought";
+  if (u.includes("EQ") || u.includes("EARTHQUAKE") || u.includes("SEISMIC")) return "Earthquake";
   return "Other";
 }

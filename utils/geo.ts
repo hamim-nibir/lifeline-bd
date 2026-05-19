@@ -1,4 +1,4 @@
-/** Bangladesh approximate bounding box */
+/** Bangladesh approximate bounding box (reference only) */
 export const BD_BOUNDS = {
   minLat: 20.5,
   maxLat: 26.7,
@@ -8,6 +8,9 @@ export const BD_BOUNDS = {
 
 export const BD_CENTER = { latitude: 23.685, longitude: 90.3563 };
 
+/** Live disaster warnings & citizen notifications use this radius */
+export const DISASTER_ALERT_RADIUS_KM = 100;
+
 export function isInBangladesh(lat: number, lon: number): boolean {
   return (
     lat >= BD_BOUNDS.minLat &&
@@ -15,6 +18,10 @@ export function isInBangladesh(lat: number, lon: number): boolean {
     lon >= BD_BOUNDS.minLon &&
     lon <= BD_BOUNDS.maxLon
   );
+}
+
+export function isWithinDisasterAlertRange(distanceKm: number): boolean {
+  return distanceKm <= DISASTER_ALERT_RADIUS_KM;
 }
 
 /** Haversine distance in kilometres */
@@ -41,30 +48,8 @@ export function formatDistance(km: number): string {
   return `${Math.round(km)} km`;
 }
 
-export type Relevance = "bangladesh" | "near_you" | "regional";
+export type Relevance = "near_you";
 
-export function assessRelevance(
-  eventLat: number,
-  eventLon: number,
-  userLat: number,
-  userLon: number,
-  distanceToUserKm: number
-): Relevance {
-  if (isInBangladesh(eventLat, eventLon)) return "bangladesh";
-  if (distanceToUserKm <= 350) return "near_you";
-  if (distanceKm(userLat, userLon, BD_CENTER.latitude, BD_CENTER.longitude) <= 800) {
-    const distToBd = distanceKm(eventLat, eventLon, BD_CENTER.latitude, BD_CENTER.longitude);
-    if (distToBd <= 600) return "regional";
-  }
-  return "regional";
-}
-
-export function isRelevantToUser(
-  relevance: Relevance,
-  distanceToUserKm: number
-): boolean {
-  if (relevance === "bangladesh") return true;
-  if (relevance === "near_you" && distanceToUserKm <= 400) return true;
-  if (relevance === "regional" && distanceToUserKm <= 550) return true;
-  return false;
+export function assessRelevance(distanceToUserKm: number): Relevance | null {
+  return isWithinDisasterAlertRange(distanceToUserKm) ? "near_you" : null;
 }

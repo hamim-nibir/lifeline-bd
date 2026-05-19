@@ -12,6 +12,7 @@ import {
   fetchLiveDisasterAlerts,
   fetchNearbyShelters,
   pushDisasterWarningNotifications,
+  notifyOperatorsOfCitizenDisasterReport,
   getDefaultUserCoordinates,
   type LiveDisasterAlert,
   type ShelterLocation,
@@ -20,28 +21,15 @@ import {
   PREPAREDNESS_GUIDES,
   type PreparednessDisasterType,
 } from "../../constants/disasterPreparedness";
-import { formatDistance } from "../../utils/geo";
+import { DISASTER_ALERT_RADIUS_KM, formatDistance } from "../../utils/geo";
 
-type DisasterType =
-  | "Flood"
-  | "Cyclone"
-  | "Earthquake"
-  | "Landslide"
-  | "Fire (Wildfire)"
-  | "Other"
-  | null;
+type DisasterType = "Flood" | "Cyclone" | "Earthquake" | "Other" | null;
 
 type Urgency = "Critical" | "High" | "Moderate";
 
 const DISASTER_TYPES: Exclude<DisasterType, null>[] = [
-  "Flood", "Cyclone", "Earthquake", "Landslide", "Fire (Wildfire)", "Other",
+  "Flood", "Cyclone", "Earthquake", "Other",
 ];
-
-const RELEVANCE_LABEL: Record<string, string> = {
-  bangladesh: "🇧🇩 Affects Bangladesh",
-  near_you: "📍 Near your location",
-  regional: "🌏 Regional risk",
-};
 
 const SEVERITY_COLOR: Record<string, string> = {
   red: "#dc2626",
@@ -96,28 +84,29 @@ export default function DisasterAlertScreen() {
         setCoords({ latitude: lat, longitude: lon });
       }
 
-      const [alerts, nearbyShelters] = await Promise.all([
-        fetchLiveDisasterAlerts(lat, lon),
-        fetchNearbyShelters(lat, lon),
-      ]);
-
+      const alerts = await fetchLiveDisasterAlerts(lat, lon);
       setLiveAlerts(alerts);
-      setShelters(nearbyShelters);
+
+      if (alerts.length > 0) {
+        const nearbyShelters = await fetchNearbyShelters(lat, lon);
+        setShelters(nearbyShelters);
+        if (!selectedAlert) {
+          setSelectedAlert(alerts[0]);
+          setActiveGuide(alerts[0].preparednessType);
+        }
+      } else {
+        setShelters([]);
+        setSelectedAlert(null);
+      }
 
       if (uid && alerts.length > 0) {
         const pushed = await pushDisasterWarningNotifications(uid, alerts);
         if (pushed > 0 && !isRefresh) {
           Alert.alert(
             "⚠️ Disaster warning",
-            `${pushed} new alert(s) near Bangladesh or your location. Check Notifications and shelters below.`
+            `${pushed} new alert(s) within ${DISASTER_ALERT_RADIUS_KM} km of you. See what to bring and shelters below.`
           );
         }
-      }
-
-      if (alerts.length > 0 && !selectedAlert) {
-        const first = alerts[0];
-        setSelectedAlert(first);
-        setActiveGuide(first.preparednessType);
       }
     } catch (e) {
       console.error("Disaster intel load failed:", e);
@@ -134,11 +123,10 @@ export default function DisasterAlertScreen() {
   const selectAlert = (alert: LiveDisasterAlert) => {
     setSelectedAlert(alert);
     setActiveGuide(alert.preparednessType);
-    setDisasterType(
-      alert.preparednessType === "Drought" ? "Other" : (alert.preparednessType as DisasterType)
-    );
+    setDisasterType(alert.preparednessType as DisasterType);
   };
 
+  const hasActiveThreat = liveAlerts.length > 0;
   const guide = PREPAREDNESS_GUIDES[activeGuide];
 
   const handleShareLocation = async () => {
@@ -217,18 +205,15 @@ export default function DisasterAlertScreen() {
       };
 
       const alertRef = await addDoc(collection(db, "disasterAlerts"), alertData);
-      await addDoc(collection(db, "notifications"), {
-        type: "disasterAlert",
+      await notifyOperatorsOfCitizenDisasterReport({
         reportId: alertRef.id,
-        title: "🌩️ Disaster Alert",
-        body: `${nickname ?? "Someone"} reported ${disasterType} (${urgency}) at ${location.address}`,
         reportedBy: nickname ?? "Unknown",
         reportedByUid: user?.uid ?? "",
         disasterType,
         urgency,
+        description: description.trim(),
+        contactNumber: contactNumber.trim(),
         location: alertData.location,
-        read: false,
-        createdAt: serverTimestamp(),
       });
 
       Alert.alert(
@@ -295,8 +280,8 @@ export default function DisasterAlertScreen() {
         <View style={cardStyle}>
           <Text style={sectionTitleStyle}>🌐 Live disaster warnings</Text>
           <Text style={{ color: "#6b7280", fontSize: 12, marginBottom: 12, lineHeight: 18 }}>
-            Data from GDACS, USGS, NASA EONET & weather services. Alerts near Bangladesh or your
-            location are sent to your Notifications tab.
+            Data from GDACS, USGS & weather services. You are only notified when a flood, cyclone,
+            or earthquake is within {DISASTER_ALERT_RADIUS_KM} km of your current location.
           </Text>
 
           {loadingIntel ? (
@@ -305,7 +290,7 @@ export default function DisasterAlertScreen() {
             <View style={{ backgroundColor: "#f0fdf4", borderRadius: 12, padding: 16 }}>
               <Text style={{ color: "#15803d", fontWeight: "700" }}>✅ No major threats detected</Text>
               <Text style={{ color: "#166534", fontSize: 12, marginTop: 4 }}>
-                No active disasters near you or Bangladesh right now. Pull to refresh.
+                No flood, cyclone, or earthquake within {DISASTER_ALERT_RADIUS_KM} km. Pull to refresh.
               </Text>
             </View>
           ) : (
@@ -338,91 +323,70 @@ export default function DisasterAlertScreen() {
                 <Text style={{ color: "#4b5563", fontSize: 12, lineHeight: 18 }} numberOfLines={3}>
                   {alert.description}
                 </Text>
-                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
-                  <Text style={{ fontSize: 11, color: "#7c3aed", fontWeight: "700" }}>
-                    {RELEVANCE_LABEL[alert.relevance] ?? alert.relevance}
-                  </Text>
-                  <Text style={{ fontSize: 11, color: "#6b7280" }}>
-                    📍 {formatDistance(alert.distanceKm)} away · {alert.source.toUpperCase()}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            ))
-          )}
-        </View>
-
-        {/* ── WHAT TO BRING ── */}
-        <View style={cardStyle}>
-          <Text style={sectionTitleStyle}>{guide.icon} What to bring — {guide.type}</Text>
-          <Text style={{ color: "#6b7280", fontSize: 12, marginBottom: 10 }}>{guide.summary}</Text>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
-            {(Object.keys(PREPAREDNESS_GUIDES) as PreparednessDisasterType[]).map((t) => (
-              <TouchableOpacity
-                key={t}
-                onPress={() => {
-                  setActiveGuide(t);
-                  setDisasterType(t === "Drought" ? "Other" : (t as DisasterType));
-                }}
-                style={{
-                  paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16,
-                  backgroundColor: activeGuide === t ? "#7c3aed" : "#f3f4f6",
-                }}
-              >
-                <Text style={{
-                  fontSize: 11, fontWeight: "700",
-                  color: activeGuide === t ? "#fff" : "#374151",
-                }}>
-                  {PREPAREDNESS_GUIDES[t].icon} {t}
+                <Text style={{ fontSize: 11, color: "#6b7280", marginTop: 8 }}>
+                  📍 {formatDistance(alert.distanceKm)} from you · {alert.source.toUpperCase()}
                 </Text>
               </TouchableOpacity>
-            ))}
-          </View>
-          {guide.essentials.map((item, i) => (
-            <View key={i} style={{ flexDirection: "row", gap: 8, marginBottom: 6 }}>
-              <Text style={{ color: "#7c3aed" }}>✓</Text>
-              <Text style={{ color: "#374151", fontSize: 13, flex: 1 }}>{item}</Text>
-            </View>
-          ))}
-          <Text style={{ ...sectionTitleStyle, marginTop: 12, marginBottom: 6 }}>Safety tips</Text>
-          {guide.safetyTips.map((tip, i) => (
-            <Text key={i} style={{ color: "#6b7280", fontSize: 12, marginBottom: 4 }}>• {tip}</Text>
-          ))}
-        </View>
-
-        {/* ── NEARBY SHELTERS ── */}
-        <View style={cardStyle}>
-          <Text style={sectionTitleStyle}>🏠 Nearest safe shelters</Text>
-          <Text style={{ color: "#6b7280", fontSize: 12, marginBottom: 12 }}>
-            Cyclone & flood shelters near you (OpenStreetMap + Bangladesh fallback list)
-          </Text>
-          {shelters.length === 0 ? (
-            <ActivityIndicator color="#7c3aed" />
-          ) : (
-            shelters.map((s) => (
-              <TouchableOpacity
-                key={s.id}
-                onPress={() => Linking.openURL(s.mapsLink)}
-                style={{
-                  borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 12,
-                  padding: 14, marginBottom: 8, backgroundColor: "#fafafa",
-                }}
-              >
-                <Text style={{ fontWeight: "700", color: "#111", fontSize: 14 }}>{s.name}</Text>
-                {s.address && (
-                  <Text style={{ color: "#6b7280", fontSize: 12, marginTop: 2 }}>{s.address}</Text>
-                )}
-                <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 8 }}>
-                  <Text style={{ color: "#7c3aed", fontSize: 12, fontWeight: "700" }}>
-                    📍 {formatDistance(s.distanceKm)} away
-                  </Text>
-                  <Text style={{ color: "#16a34a", fontSize: 12, fontWeight: "700" }}>
-                    Open in Maps →
-                  </Text>
-                </View>
-              </TouchableOpacity>
             ))
           )}
         </View>
+
+        {hasActiveThreat && selectedAlert && (
+          <>
+            <View style={[cardStyle, { borderColor: "#c4b5fd", borderWidth: 2 }]}>
+              <Text style={sectionTitleStyle}>
+                {guide.icon} What to bring — {guide.type}
+              </Text>
+              <Text style={{ color: "#6b7280", fontSize: 12, marginBottom: 10 }}>
+                Active threat: {selectedAlert.title}. {guide.summary}
+              </Text>
+              {guide.essentials.map((item, i) => (
+                <View key={i} style={{ flexDirection: "row", gap: 8, marginBottom: 6 }}>
+                  <Text style={{ color: "#7c3aed" }}>✓</Text>
+                  <Text style={{ color: "#374151", fontSize: 13, flex: 1 }}>{item}</Text>
+                </View>
+              ))}
+              <Text style={{ ...sectionTitleStyle, marginTop: 12, marginBottom: 6 }}>Safety tips</Text>
+              {guide.safetyTips.map((tip, i) => (
+                <Text key={i} style={{ color: "#6b7280", fontSize: 12, marginBottom: 4 }}>• {tip}</Text>
+              ))}
+            </View>
+
+            <View style={cardStyle}>
+              <Text style={sectionTitleStyle}>🏠 Nearest safe shelters</Text>
+              <Text style={{ color: "#6b7280", fontSize: 12, marginBottom: 12 }}>
+                Evacuation shelters within {DISASTER_ALERT_RADIUS_KM} km (maps + Bangladesh centres)
+              </Text>
+              {shelters.length === 0 ? (
+                <Text style={{ color: "#9ca3af", fontSize: 13 }}>Loading shelters…</Text>
+              ) : (
+                shelters.map((s) => (
+                  <TouchableOpacity
+                    key={s.id}
+                    onPress={() => Linking.openURL(s.mapsLink)}
+                    style={{
+                      borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 12,
+                      padding: 14, marginBottom: 8, backgroundColor: "#fafafa",
+                    }}
+                  >
+                    <Text style={{ fontWeight: "700", color: "#111", fontSize: 14 }}>{s.name}</Text>
+                    {s.address && (
+                      <Text style={{ color: "#6b7280", fontSize: 12, marginTop: 2 }}>{s.address}</Text>
+                    )}
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 8 }}>
+                      <Text style={{ color: "#7c3aed", fontSize: 12, fontWeight: "700" }}>
+                        📍 {formatDistance(s.distanceKm)} away
+                      </Text>
+                      <Text style={{ color: "#16a34a", fontSize: 12, fontWeight: "700" }}>
+                        Open in Maps →
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))
+              )}
+            </View>
+          </>
+        )}
 
         {/* ── REPORT EMERGENCY (toggle) ── */}
         <TouchableOpacity
@@ -454,7 +418,7 @@ export default function DisasterAlertScreen() {
                   key={type}
                   onPress={() => {
                     setDisasterType(type);
-                    setActiveGuide(type as PreparednessDisasterType);
+                    if (type !== "Other") setActiveGuide(type);
                   }}
                   style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10 }}
                 >

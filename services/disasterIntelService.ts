@@ -1,23 +1,23 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
-import {
-  assessRelevance,
-  BD_CENTER,
-  distanceKm,
-  formatDistance,
-  isInBangladesh,
-  isRelevantToUser,
-  type Relevance,
-} from "../utils/geo";
+import { BD_SHELTER_LOCATIONS } from "../constants/bdShelters";
 import {
   mapEventToPreparednessType,
   type PreparednessDisasterType,
 } from "../constants/disasterPreparedness";
+import {
+  assessRelevance,
+  BD_CENTER,
+  DISASTER_ALERT_RADIUS_KM,
+  distanceKm,
+  formatDistance,
+  isWithinDisasterAlertRange,
+} from "../utils/geo";
 import { db } from "./firebase";
 
 export type LiveDisasterAlert = {
   id: string;
-  source: "gdacs" | "usgs" | "eonet";
+  source: "gdacs" | "usgs" | "openweather";
   eventType: string;
   preparednessType: PreparednessDisasterType;
   title: string;
@@ -26,7 +26,7 @@ export type LiveDisasterAlert = {
   latitude: number;
   longitude: number;
   distanceKm: number;
-  relevance: Relevance;
+  relevance: "near_you";
   url?: string;
   startedAt?: string;
 };
@@ -41,20 +41,6 @@ export type ShelterLocation = {
   source: "osm" | "fallback";
   mapsLink: string;
 };
-
-/** Known cyclone / flood shelters in major Bangladesh cities (fallback when OSM has few results) */
-const BD_FALLBACK_SHELTERS: Omit<ShelterLocation, "distanceKm" | "mapsLink">[] = [
-  { id: "dhaka-1", name: "Mohammadpur Cyclone Shelter", latitude: 23.7562, longitude: 90.3544, address: "Dhaka", source: "fallback" },
-  { id: "dhaka-2", name: "Dhanmondi Govt Shelter Centre", latitude: 23.7461, longitude: 90.3742, address: "Dhaka", source: "fallback" },
-  { id: "dhaka-3", name: "Mirpur Section-10 Shelter", latitude: 23.8067, longitude: 90.3683, address: "Dhaka", source: "fallback" },
-  { id: "ctg-1", name: "Chittagong Double Mooring Shelter", latitude: 22.3382, longitude: 91.8312, address: "Chittagong", source: "fallback" },
-  { id: "ctg-2", name: "Agrabad Emergency Shelter", latitude: 22.3245, longitude: 91.8145, address: "Chittagong", source: "fallback" },
-  { id: "cox-1", name: "Cox's Bazar Cyclone Shelter", latitude: 21.4272, longitude: 91.9688, address: "Cox's Bazar", source: "fallback" },
-  { id: "syl-1", name: "Sylhet City Corporation Shelter", latitude: 24.8949, longitude: 91.8687, address: "Sylhet", source: "fallback" },
-  { id: "raj-1", name: "Rajshahi Disaster Management Shelter", latitude: 24.3745, longitude: 88.6042, address: "Rajshahi", source: "fallback" },
-  { id: "khu-1", name: "Khulna Cyclone Shelter", latitude: 22.8456, longitude: 89.5403, address: "Khulna", source: "fallback" },
-  { id: "bar-1", name: "Barishal Sadar Shelter", latitude: 22.701, longitude: 90.3535, address: "Barishal", source: "fallback" },
-];
 
 function severityFromGdacs(level: string): LiveDisasterAlert["severity"] {
   const l = level?.toLowerCase() ?? "";
@@ -76,46 +62,37 @@ function buildAlert(
   userLat: number,
   userLon: number
 ): LiveDisasterAlert | null {
-  const distance = distanceKm(userLat, userLon, partial.latitude, partial.longitude);
-  const relevance = assessRelevance(
-    partial.latitude,
-    partial.longitude,
-    userLat,
-    userLon,
-    distance
-  );
-  if (!isRelevantToUser(relevance, distance)) return null;
+  const preparednessType = mapEventToPreparednessType(partial.eventType, partial.title);
+  if (!preparednessType) return null;
+
+  const dist = distanceKm(userLat, userLon, partial.latitude, partial.longitude);
+  if (!isWithinDisasterAlertRange(dist)) return null;
+  if (!assessRelevance(dist)) return null;
 
   return {
     ...partial,
-    distanceKm: distance,
-    relevance,
-    preparednessType: mapEventToPreparednessType(partial.eventType, partial.title),
+    distanceKm: dist,
+    relevance: "near_you",
+    preparednessType,
   };
 }
 
 async function fetchGdacsAlerts(userLat: number, userLon: number): Promise<LiveDisasterAlert[]> {
   try {
     const res = await fetch(
-      "https://www.gdacs.org/gdacsapi/api/events/geteventlist/SEARCH?eventlist=EQ,TC,FL,VO,DR,WF&limit=25",
+      "https://www.gdacs.org/gdacsapi/api/events/geteventlist/SEARCH?eventlist=EQ,TC,FL&limit=30",
       { headers: { Accept: "application/json" } }
     );
     if (!res.ok) return [];
     const data = await res.json();
-    const features = data?.features ?? [];
     const alerts: LiveDisasterAlert[] = [];
 
-    for (const f of features) {
+    for (const f of data?.features ?? []) {
       const coords = f?.geometry?.coordinates;
       if (!coords || coords.length < 2) continue;
       const lon = Number(coords[0]);
       const lat = Number(coords[1]);
       const p = f?.properties ?? {};
-      const country = String(p.country ?? p.affectedcountries ?? "");
-      const inBd =
-        isInBangladesh(lat, lon) ||
-        country.toLowerCase().includes("bangladesh") ||
-        country.toLowerCase().includes("bgd");
 
       const alert = buildAlert(
         {
@@ -125,7 +102,7 @@ async function fetchGdacsAlerts(userLat: number, userLon: number): Promise<LiveD
           title: String(p.name ?? p.eventname ?? "Disaster alert"),
           description: String(
             p.description ??
-              `${p.eventtype ?? "Event"} — Alert level: ${p.alertlevel ?? "Unknown"}${inBd ? " (Bangladesh affected)" : ""}`
+              `${p.eventtype ?? "Event"} — Alert level: ${p.alertlevel ?? "Unknown"}`
           ),
           severity: severityFromGdacs(String(p.alertlevel ?? "")),
           latitude: lat,
@@ -159,8 +136,6 @@ async function fetchUsgsEarthquakes(userLat: number, userLon: number): Promise<L
       if (mag < 4.5) continue;
       const coords = f?.geometry?.coordinates;
       if (!coords || coords.length < 2) continue;
-      const lon = Number(coords[0]);
-      const lat = Number(coords[1]);
 
       const alert = buildAlert(
         {
@@ -168,10 +143,10 @@ async function fetchUsgsEarthquakes(userLat: number, userLon: number): Promise<L
           source: "usgs",
           eventType: "EQ",
           title: `Earthquake M${mag.toFixed(1)} — ${f.properties?.place ?? "Unknown"}`,
-          description: `Magnitude ${mag} earthquake detected. Depth ${coords[2] ?? "?"} km.`,
+          description: `Magnitude ${mag} earthquake within ${DISASTER_ALERT_RADIUS_KM} km of you.`,
           severity: severityFromMagnitude(mag),
-          latitude: lat,
-          longitude: lon,
+          latitude: Number(coords[1]),
+          longitude: Number(coords[0]),
           url: f.properties?.url,
           startedAt: f.properties?.time
             ? new Date(f.properties.time).toISOString()
@@ -189,48 +164,6 @@ async function fetchUsgsEarthquakes(userLat: number, userLon: number): Promise<L
   }
 }
 
-async function fetchEonetAlerts(userLat: number, userLon: number): Promise<LiveDisasterAlert[]> {
-  try {
-    const res = await fetch(
-      "https://eonet.gsfc.nasa.gov/api/v3/events?status=open&limit=15"
-    );
-    if (!res.ok) return [];
-    const data = await res.json();
-    const alerts: LiveDisasterAlert[] = [];
-
-    for (const ev of data?.events ?? []) {
-      const cat = ev.categories?.[0]?.title ?? "Event";
-      const geom = ev.geometry?.[ev.geometry.length - 1];
-      if (!geom?.coordinates) continue;
-      const lon = Number(geom.coordinates[0]);
-      const lat = Number(geom.coordinates[1]);
-
-      const alert = buildAlert(
-        {
-          id: `eonet-${ev.id}`,
-          source: "eonet",
-          eventType: cat,
-          title: String(ev.title ?? cat),
-          description: `${cat} event tracked near your region. Stay alert for official updates.`,
-          severity: "moderate",
-          latitude: lat,
-          longitude: lon,
-          url: ev.sources?.[0]?.url,
-          startedAt: geom.date,
-        },
-        userLat,
-        userLon
-      );
-      if (alert) alerts.push(alert);
-    }
-    return alerts;
-  } catch (e) {
-    console.warn("EONET fetch failed:", e);
-    return [];
-  }
-}
-
-/** OpenWeather government alerts (One Call 3.0) — optional if key supports it */
 async function fetchOpenWeatherAlerts(
   userLat: number,
   userLon: number
@@ -249,10 +182,10 @@ async function fetchOpenWeatherAlerts(
       const alert = buildAlert(
         {
           id: `owm-${a.event}-${a.start}`,
-          source: "gdacs",
+          source: "openweather",
           eventType: a.event ?? "Weather",
           title: String(a.event ?? "Weather alert"),
-          description: String(a.description ?? a.tag ?? "Weather warning for your area"),
+          description: String(a.description ?? a.tag ?? "Weather warning in your area"),
           severity: "orange",
           latitude: userLat,
           longitude: userLon,
@@ -273,16 +206,14 @@ export async function fetchLiveDisasterAlerts(
   userLat: number,
   userLon: number
 ): Promise<LiveDisasterAlert[]> {
-  const [gdacs, usgs, eonet, owm] = await Promise.all([
+  const [gdacs, usgs, owm] = await Promise.all([
     fetchGdacsAlerts(userLat, userLon),
     fetchUsgsEarthquakes(userLat, userLon),
-    fetchEonetAlerts(userLat, userLon),
     fetchOpenWeatherAlerts(userLat, userLon),
   ]);
 
-  const merged = [...gdacs, ...usgs, ...eonet, ...owm];
   const byId = new Map<string, LiveDisasterAlert>();
-  for (const a of merged) byId.set(a.id, a);
+  for (const a of [...gdacs, ...usgs, ...owm]) byId.set(a.id, a);
 
   return Array.from(byId.values()).sort((a, b) => a.distanceKm - b.distanceKm);
 }
@@ -303,17 +234,17 @@ function toShelter(
 async function fetchOsmShelters(
   userLat: number,
   userLon: number,
-  radiusM = 35000
+  radiusM = 50000
 ): Promise<ShelterLocation[]> {
   const query = `
-    [out:json][timeout:20];
+    [out:json][timeout:25];
     (
       node["amenity"="shelter"](around:${radiusM},${userLat},${userLon});
       node["emergency"="assembly_point"](around:${radiusM},${userLat},${userLon});
-      node["building"="civic"]["shelter"="yes"](around:${radiusM},${userLat},${userLon});
+      node["emergency"="shelter"](around:${radiusM},${userLat},${userLon});
       way["amenity"="shelter"](around:${radiusM},${userLat},${userLon});
     );
-    out center 12;
+    out center 20;
   `;
 
   try {
@@ -324,32 +255,27 @@ async function fetchOsmShelters(
     });
     if (!res.ok) return [];
     const data = await res.json();
-    const elements = data?.elements ?? [];
     const shelters: ShelterLocation[] = [];
 
-    for (const el of elements) {
+    for (const el of data?.elements ?? []) {
       const lat = el.lat ?? el.center?.lat;
       const lon = el.lon ?? el.center?.lon;
       if (lat == null || lon == null) continue;
-      const name =
-        el.tags?.name ??
-        el.tags?.["name:en"] ??
-        el.tags?.["addr:full"] ??
-        "Emergency shelter";
-      shelters.push(
-        toShelter(
-          {
-            id: `osm-${el.id}`,
-            name: String(name),
-            latitude: lat,
-            longitude: lon,
-            address: el.tags?.["addr:city"] ?? el.tags?.["addr:district"],
-            source: "osm",
-          },
-          userLat,
-          userLon
-        )
+      const s = toShelter(
+        {
+          id: `osm-${el.id}`,
+          name: String(
+            el.tags?.name ?? el.tags?.["name:en"] ?? el.tags?.["addr:full"] ?? "Emergency shelter"
+          ),
+          latitude: lat,
+          longitude: lon,
+          address: el.tags?.["addr:city"] ?? el.tags?.["addr:district"],
+          source: "osm",
+        },
+        userLat,
+        userLon
       );
+      if (isWithinDisasterAlertRange(s.distanceKm)) shelters.push(s);
     }
     return shelters;
   } catch (e) {
@@ -361,14 +287,26 @@ async function fetchOsmShelters(
 export async function fetchNearbyShelters(
   userLat: number,
   userLon: number,
-  limit = 8
+  limit = 15
 ): Promise<ShelterLocation[]> {
   const osm = await fetchOsmShelters(userLat, userLon);
-  const fallback = BD_FALLBACK_SHELTERS.map((s) => toShelter(s, userLat, userLon));
+  const fallback = BD_SHELTER_LOCATIONS.map((s) =>
+    toShelter(
+      {
+        id: s.id,
+        name: s.name,
+        latitude: s.latitude,
+        longitude: s.longitude,
+        address: s.address,
+        source: "fallback",
+      },
+      userLat,
+      userLon
+    )
+  ).filter((s) => isWithinDisasterAlertRange(s.distanceKm));
 
-  const combined = [...osm, ...fallback];
   const unique = new Map<string, ShelterLocation>();
-  for (const s of combined) {
+  for (const s of [...osm, ...fallback]) {
     const key = `${s.latitude.toFixed(3)}-${s.longitude.toFixed(3)}`;
     const existing = unique.get(key);
     if (!existing || s.distanceKm < existing.distanceKm) unique.set(key, s);
@@ -381,37 +319,35 @@ export async function fetchNearbyShelters(
 
 const SEEN_ALERTS_KEY = (uid: string) => `disaster_warnings_seen_${uid}`;
 
-/** Write in-app notifications for new relevant disaster warnings */
+/** Notify citizen only for threats within 100 km */
 export async function pushDisasterWarningNotifications(
   uid: string,
   alerts: LiveDisasterAlert[]
 ): Promise<number> {
   if (!uid || alerts.length === 0) return 0;
 
-  const relevant = alerts.filter(
-    (a) => a.relevance === "bangladesh" || a.relevance === "near_you"
-  );
-  if (relevant.length === 0) return 0;
+  const nearby = alerts.filter((a) => a.distanceKm <= DISASTER_ALERT_RADIUS_KM);
+  if (nearby.length === 0) return 0;
 
   const raw = await AsyncStorage.getItem(SEEN_ALERTS_KEY(uid));
   const seen: string[] = raw ? JSON.parse(raw) : [];
   let pushed = 0;
 
-  for (const alert of relevant.slice(0, 5)) {
+  for (const alert of nearby.slice(0, 5)) {
     if (seen.includes(alert.id)) continue;
 
     await addDoc(collection(db, "notifications"), {
       type: "disasterWarning",
       forUid: uid,
       title: `🌩️ ${alert.title}`,
-      body: `${alert.description.slice(0, 120)}… — ${formatDistance(alert.distanceKm)} from you. Open Disaster Alert for shelters & kit list.`,
+      body: `${alert.description.slice(0, 100)}… — ${formatDistance(alert.distanceKm)} from you. Open Disaster Alert for guidance.`,
       disasterType: alert.preparednessType,
       externalAlertId: alert.id,
       severity: alert.severity,
       location: {
         latitude: alert.latitude,
         longitude: alert.longitude,
-        address: alert.relevance === "bangladesh" ? "Bangladesh / nearby" : "Near your location",
+        address: `Within ${formatDistance(alert.distanceKm)} of your location`,
         mapsLink: `https://maps.google.com/?q=${alert.latitude},${alert.longitude}`,
       },
       read: false,
@@ -422,11 +358,42 @@ export async function pushDisasterWarningNotifications(
     pushed++;
   }
 
-  await AsyncStorage.setItem(
-    SEEN_ALERTS_KEY(uid),
-    JSON.stringify(seen.slice(-80))
-  );
+  await AsyncStorage.setItem(SEEN_ALERTS_KEY(uid), JSON.stringify(seen.slice(-80)));
   return pushed;
+}
+
+/** Notify all operators when a citizen submits a disaster report */
+export async function notifyOperatorsOfCitizenDisasterReport(params: {
+  reportId: string;
+  reportedBy: string;
+  reportedByUid: string;
+  disasterType: string;
+  urgency: string;
+  description: string;
+  contactNumber: string;
+  location: {
+    latitude: number;
+    longitude: number;
+    address: string;
+    mapsLink: string;
+  };
+}): Promise<void> {
+  await addDoc(collection(db, "notifications"), {
+    type: "disasterAlert",
+    reportId: params.reportId,
+    title: "🌩️ Citizen Disaster Report",
+    body: `${params.reportedBy} reported ${params.disasterType} (${params.urgency}) at ${params.location.address}`,
+    reportedBy: params.reportedBy,
+    reportedByUid: params.reportedByUid,
+    disasterType: params.disasterType,
+    urgency: params.urgency,
+    contactNumber: params.contactNumber,
+    description: params.description,
+    location: params.location,
+    severity: params.urgency === "Critical" ? "high" : "normal",
+    read: false,
+    createdAt: serverTimestamp(),
+  });
 }
 
 export function getDefaultUserCoordinates(): { latitude: number; longitude: number } {
