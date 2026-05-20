@@ -1,0 +1,368 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── Helpers ───────────────────────────────────────────────────────────
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function userProfile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function userExists() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function accountType() {
+      return userExists() ? userProfile().data.accountType : '';
+    }
+
+    function isOperator() {
+      return isAuthenticated() && accountType() == 'operator';
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        accountType() == 'admin'
+      );
+    }
+
+    function isOperatorOrAdmin() {
+      return isOperator() || isAdmin();
+    }
+
+    function operatorOnlyDispatchKeys() {
+      return [
+        'statusIndex',
+        'status',
+        'assignedVehicleId',
+        'assignedVehicle',
+        'vehicleId',
+        'operatorId',
+        'operatorUid',
+        'dispatchedAt',
+        'enrouteAt',
+        'onSceneAt',
+        'containedAt',
+        'etaText',
+        'distanceKm',
+        'selectedStationName',
+        'stationLat',
+        'stationLng',
+        'stationSource',
+        'mapsLink',
+      ];
+    }
+
+    function operatorOnlyIncidentKeys() {
+      return [
+        'status',
+        'statusIndex',
+        'assignedVehicleId',
+        'assignedVehicle',
+        'vehicleId',
+        'operatorId',
+        'operatorUid',
+        'dispatchId',
+      ];
+    }
+
+    function fireDispatchDoc(dispatchId) {
+      return get(/databases/$(database)/documents/fire-dispatch/$(dispatchId));
+    }
+
+    function canReadFireDispatch(dispatchId) {
+      return fireDispatchDoc(dispatchId).data.uid == request.auth.uid
+        || isOperatorOrAdmin();
+    }
+
+    function citizenOwnsFireDispatch() {
+      return isAuthenticated() && resource.data.uid == request.auth.uid;
+    }
+
+    function citizenCreatesFireDispatch() {
+      return isAuthenticated()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.statusIndex == 0;
+    }
+
+    function citizenUpdatesFireDispatchDetailsOnly() {
+      return citizenOwnsFireDispatch()
+        && request.resource.data.uid == resource.data.uid
+        && !request.resource.data.diff(resource.data).affectedKeys()
+            .hasAny(operatorOnlyDispatchKeys());
+    }
+
+    function citizenUpdatesIncidentDetailsOnly() {
+      return isOwner(resource.data.userId)
+        && request.resource.data.userId == request.auth.uid
+        && !request.resource.data.diff(resource.data).affectedKeys()
+            .hasAny(operatorOnlyIncidentKeys());
+    }
+
+    // Vehicle / location docs should include dispatchId when assigned
+    function canReadVehicleForAssignedDispatch() {
+      return isOperatorOrAdmin()
+        || (
+          isAuthenticated()
+          && resource.data.dispatchId != null
+          && canReadFireDispatch(resource.data.dispatchId)
+        );
+    }
+
+    function incidentDoc(incidentId) {
+      return get(/databases/$(database)/documents/incidents/$(incidentId));
+    }
+
+    function incidentExists(incidentId) {
+      return exists(/databases/$(database)/documents/incidents/$(incidentId));
+    }
+
+    function isVolunteerOnIncident(incidentId) {
+      return isAuthenticated()
+        && accountType() == 'volunteer'
+        && incidentExists(incidentId)
+        && request.auth.uid in incidentDoc(incidentId).data.assignedVolunteers;
+    }
+
+    function canAccessChatIncident(incidentId) {
+      return isOperatorOrAdmin()
+        || (
+          incidentExists(incidentId)
+          && incidentDoc(incidentId).data.userId == request.auth.uid
+        )
+        || isVolunteerOnIncident(incidentId);
+    }
+
+    function chatRoleForAccount() {
+      return accountType() == 'citizen' ? 'user'
+        : accountType() == 'volunteer' ? 'volunteer'
+        : accountType() == 'operator' ? 'operator'
+        : '';
+    }
+
+    function validChatMessageCreate() {
+      return isAuthenticated()
+        && request.resource.data.senderId == request.auth.uid
+        && request.resource.data.role == chatRoleForAccount()
+        && chatRoleForAccount() != ''
+        && canAccessChatIncident(request.resource.data.incidentId)
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 2000;
+    }
+
+    // ─── Users & admins ────────────────────────────────────────────────────
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isOperatorOrAdmin();
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /admins/{userId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // ─── Fire service dispatch (collection used by the app) ──────────────────
+
+    match /fire-dispatch/{dispatchId} {
+      allow read: if citizenOwnsFireDispatch() || isOperatorOrAdmin();
+      allow create: if citizenCreatesFireDispatch();
+      allow update: if isOperatorOrAdmin() || citizenUpdatesFireDispatchDetailsOnly();
+      allow delete: if isAdmin();
+
+      match /statusUpdates/{updateId} {
+        allow read: if citizenOwnsFireDispatch() || isOperatorOrAdmin();
+        allow create, update: if isOperatorOrAdmin();
+        allow delete: if isAdmin();
+      }
+    }
+
+    // ─── Incidents ─────────────────────────────────────────────────────────
+
+    match /incidents/{incidentId} {
+      allow read: if isOwner(resource.data.userId)
+        || isOperatorOrAdmin()
+        || (
+          isAuthenticated()
+          && accountType() == 'volunteer'
+          && request.auth.uid in resource.data.assignedVolunteers
+        );
+      allow create: if isAuthenticated()
+        && request.resource.data.userId == request.auth.uid;
+      allow update: if isOperatorOrAdmin()
+        || (
+          isOwner(resource.data.userId)
+          && request.resource.data.userId == request.auth.uid
+          && !request.resource.data.diff(resource.data).affectedKeys()
+              .hasAny(['status', 'assignedVolunteers', 'severity'])
+        );
+      allow delete: if isAdmin();
+
+      match /incidentDetails/{detailId} {
+        allow read: if isOwner(resource.data.userId) || isOperatorOrAdmin();
+        allow create: if isAuthenticated()
+          && request.resource.data.userId == request.auth.uid;
+        allow update: if isOwner(resource.data.userId) || isOperatorOrAdmin();
+        allow delete: if isOwner(resource.data.userId) || isAdmin();
+      }
+    }
+
+    // ─── Dispatches (operator assignment workflow) ───────────────────────────
+
+    match /dispatches/{dispatchId} {
+      allow read: if isOwner(resource.data.userId) || isOperatorOrAdmin();
+      allow create: if isAuthenticated()
+        && request.resource.data.userId == request.auth.uid;
+      allow update: if isOperatorOrAdmin();
+      allow delete: if isAdmin();
+
+      match /statusUpdates/{updateId} {
+        allow read: if isOwner(resource.data.userId) || isOperatorOrAdmin();
+        allow create, update: if isOperatorOrAdmin();
+        allow delete: if isAdmin();
+      }
+    }
+
+    // ─── Vehicles & GPS tracking ───────────────────────────────────────────
+    // When assigning a vehicle, set vehicle.dispatchId = fire-dispatch doc id.
+    // Location updates should copy the same dispatchId for citizen read access.
+
+    match /vehicles/{vehicleId} {
+      allow read: if canReadVehicleForAssignedDispatch();
+      allow create, update: if isOperatorOrAdmin();
+      allow delete: if isAdmin();
+
+      match /locations/{locationId} {
+        allow read: if canReadVehicleForAssignedDispatch();
+        allow create, update: if isOperatorOrAdmin();
+        allow delete: if isAdmin();
+      }
+    }
+
+    // ─── Fire stations ─────────────────────────────────────────────────────
+
+    match /fireStations/{stationId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isOperatorOrAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ─── Emergency requests ─────────────────────────────────────────────────
+
+    match /emergencyRequests/{requestId} {
+      allow read: if isOwner(resource.data.userId) || isOperatorOrAdmin();
+      allow create: if isAuthenticated()
+        && request.resource.data.userId == request.auth.uid;
+      allow update: if isOperatorOrAdmin()
+        || (
+          isOwner(resource.data.userId)
+          && request.resource.data.userId == request.auth.uid
+          && !request.resource.data.diff(resource.data).affectedKeys()
+              .hasAny(['status', 'assignedVehicleId', 'operatorId', 'operatorUid'])
+        );
+      allow delete: if isAdmin();
+    }
+
+    match /serviceTypes/{typeId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ─── Emergency chat messages ─────────────────────────────────────────────
+
+    match /messages/{messageId} {
+      allow read: if canAccessChatIncident(resource.data.incidentId);
+      allow create: if validChatMessageCreate();
+      allow update, delete: if isAdmin();
+    }
+
+    match /pushQueue/{queueId} {
+      allow create: if isAuthenticated();
+      allow read, update: if isOperatorOrAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ─── Notifications ─────────────────────────────────────────────────────
+
+    match /notifications/{notificationId} {
+      allow read: if isOperatorOrAdmin()
+        || (isAuthenticated() && resource.data.uid == request.auth.uid);
+      allow create: if isAuthenticated();
+      allow update: if isOperatorOrAdmin()
+        || (isAuthenticated() && resource.data.uid == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    // ─── Other LifelineBD collections ──────────────────────────────────────
+
+    match /emergency-services/{serviceType}/{serviceId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /services/{serviceId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /alerts/{alertId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update: if isAdmin() || isOwner(resource.data.createdBy);
+      allow delete: if isAdmin();
+    }
+
+    match /news/{newsId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /accidentReports/{reportId} {
+      allow read: if isOperatorOrAdmin() || isOwner(resource.data.userId);
+      allow create: if isAuthenticated();
+      allow update: if isOperatorOrAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /verificationRequests/{requestId} {
+      allow read: if isOperatorOrAdmin() || isOwner(resource.data.userId);
+      allow create: if isAuthenticated();
+      allow update: if isOperatorOrAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /panic-alerts/{alertId} {
+      allow read: if isOperatorOrAdmin() || isOwner(resource.data.userId);
+      allow create: if isAuthenticated();
+      allow update: if isOwner(resource.data.userId) || isOperatorOrAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /monitoring/{documentId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /user-locations/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow write: if isOwner(userId);
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
