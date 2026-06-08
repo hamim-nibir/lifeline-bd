@@ -46,6 +46,13 @@ const CITIZEN_FEATURES: Feature[] = [
     color: "#f0fdf4",
   },
   {
+    icon: "🔍",
+    name: "Find Donor",
+    desc: "Search nearby",
+    route: "/find-donor",
+    color: "#f0fdf4",
+  },
+  {
     icon: "📋",
     name: "My History",
     desc: "Past donations",
