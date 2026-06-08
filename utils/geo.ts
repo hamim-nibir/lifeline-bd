@@ -24,6 +24,7 @@ export function offsetLatLng(
   bearingDeg: number
 ): { latitude: number; longitude: number } {
   const R = 6371;
+  const RAD_TO_DEG = 57.29577951308232;
   const br = (bearingDeg * Math.PI) / 180;
   const d = distanceKm / R;
   const lat1 = (lat * Math.PI) / 180;
@@ -37,7 +38,7 @@ export function offsetLatLng(
       Math.sin(br) * Math.sin(d) * Math.cos(lat1),
       Math.cos(d) - Math.sin(lat1) * Math.sin(lat2)
     );
-  return { latitude: (lat2 * 180) / Math.PI, longitude: (lng2 * 180) / Math.PI };
+  return { latitude: lat2 * RAD_TO_DEG, longitude: lng2 * RAD_TO_DEG };
 }
 
 /** Move point `from` toward `to` by fraction 0–1 of the straight-line chord (good enough for short distances). */

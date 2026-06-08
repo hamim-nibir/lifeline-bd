@@ -1,4 +1,5 @@
 import { db } from "../firebaseAdmin.js";
+import { randomBytes } from "node:crypto";
 
 const COURSES_COLLECTION = "training/courses";
 const ENROLLMENTS_COLLECTION = "training/enrollments";
@@ -302,7 +303,8 @@ export const trainingService = {
       const certificateRef = db.collection(CERTIFICATES_COLLECTION).doc();
       const now = new Date();
       const expiryDate = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
-      const certificateNumber = `CERT-${now.getFullYear()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+      const certificateSuffix = randomBytes(5).toString("hex").toUpperCase();
+      const certificateNumber = `CERT-${now.getFullYear()}-${certificateSuffix}`;
 
       await certificateRef.set({
         userId,
