@@ -20,12 +20,10 @@ type Feature = {
 
 const OPERATOR_FEATURES: Feature[] = [
   { icon: "🔔", name: "Panic Alerts", desc: "View notifications", route: "/(feat)/operator-panic-alerts", color: "#fef2f2" },
-  { icon: "🚔", name: "Police Reports", desc: "View police alerts", route: "/(feat)/operator-police-reports", color: "#f0f9ff" },
-  { icon: "📋", name: "Citizen Reports", desc: "Also on Review tab", route: "/(feat)/operator-citizen-reports", color: "#fff7ed" },
-  { icon: "🚨", name: "Accident Reports", desc: "Legacy accident reports", route: "/(feat)/operator-accident-reports", color: "#fef3c7" },
-  { icon: "🌩️", name: "Disaster Reports", desc: "Citizen disaster alerts", route: "/(feat)/operator-disaster-reports", color: "#ede9fe" },
-  { icon: "⚡", name: "Unified Requests", desc: "View unified emergency requests", route: "/(feat)/operator-unified-requests", color: "#fefce8" },
-  
+  { icon: "🚨", name: "SOS Alerts", desc: "Live SOS requests", route: "/(feat)/operator-sos-alerts", color: "#fee2e2" },
+  { icon: "🔥", name: "Fire Dispatches", desc: "Track fire service requests", route: "/(feat)/operator-fire-dispatches", color: "#fff1f2" },
+  { icon: "🚑", name: "Ambulance Requests", desc: "Manage ambulance calls", route: "/(feat)/operator-ambulance-requests", color: "#fff7ed" },
+  { icon: "📋", name: "Accident Reports", desc: "Review reports", route: "/(feat)/operator-accident-reports", color: "#fff7ed" },
   {
   icon: "🪪",
   name: "Verifications",
@@ -40,7 +38,6 @@ const OPERATOR_FEATURES: Feature[] = [
   { icon: "📢", name: "Broadcast", desc: "Send alerts", route: "/(feat)/broadcast", color: "#fff7ed" },
   { icon: "🗺️", name: "Live Map", desc: "Track incidents", route: "/(feat)/live-map", color: "#f0fdf4" },
   { icon: "⚙️", name: "Settings", desc: "System config", route: "/(feat)/settings", color: "#f8fafc" },
-  { icon: "💬", name: "Citizen Chats", desc: "Reply to citizen messages", route: "/(feat)/operator-chat-list", color: "#f0fdf4" },
 ];
 
 export default function OperatorDashboard() {
@@ -49,7 +46,7 @@ export default function OperatorDashboard() {
 
   const handleLogout = async () => {
     await logoutUser();
-    router.replace("/login");
+    router.replace("/");
   };
 
   const handleFeaturePress = (route: string) => {
