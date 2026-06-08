@@ -161,6 +161,24 @@ service cloud.firestore {
         && request.resource.data.text.size() <= 2000;
     }
 
+    function isAllowedContactUpdate() {
+      return request.resource.data.keys().hasOnly([
+        "userId", "name", "phone", "relationship",
+        "notifyOnSOS", "createdAt"
+      ]);
+    }
+
+    function isAllowedSOSEventCreate() {
+      return request.resource.data.keys().hasOnly([
+        "userId", "userName", "latitude", "longitude",
+        "address", "status", "source", "triggeredAt", "resolvedAt",
+        "sosPhase", "operatorAccepted", "responderStatus",
+        "etaMinutesMin", "etaMinutesMax", "sosAlertId", "lastLocationAt"
+      ])
+      && request.resource.data.userId == request.auth.uid
+      && request.resource.data.status == "active";
+    }
+
     // ─── Users & admins ────────────────────────────────────────────────────
 
     match /users/{userId} {
@@ -359,6 +377,190 @@ service cloud.firestore {
     match /user-locations/{userId} {
       allow read: if isOwner(userId) || isAdmin();
       allow write: if isOwner(userId);
+    }
+
+    match /users/{userId}/importantContacts/{contactId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    match /panicAlerts/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner(userId);
+    }
+
+    match /bloodDonationHistory/{uid}/records/{recordId} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner(uid);
+    }
+
+    match /bloodRequests/{requestId} {
+      allow create, read, update: if isAuthenticated();
+    }
+
+    match /chats/{chatId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /chats/{chatId}/messages/{messageId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /emergency_contacts/{contactId} {
+      allow create: if isAuthenticated()
+        && request.resource.data.userId == request.auth.uid
+        && isAllowedContactUpdate();
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || isOperator()
+      );
+      allow update: if isAuthenticated()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == request.auth.uid
+        && isAllowedContactUpdate();
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    match /sos_events/{eventId} {
+      allow create: if isAuthenticated() && isAllowedSOSEventCreate();
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || isOperator()
+      );
+      allow update: if isAuthenticated() && (
+        isOperator()
+        || (
+          resource.data.userId == request.auth.uid
+          && (
+            request.resource.data.diff(resource.data).changedKeys().hasOnly([
+              "latitude", "longitude", "address", "lastLocationAt"
+            ])
+            || (
+              resource.data.status == "active"
+              && request.resource.data.status == "cancelled"
+              && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+                "status", "resolvedAt"
+              ])
+            )
+          )
+        )
+      );
+      allow delete: if false;
+    }
+
+    match /sos_alerts/{alertId} {
+      allow create: if isAuthenticated()
+        && request.resource.data.reportedByUid == request.auth.uid;
+      allow read: if isAuthenticated() && (
+        isOperator()
+        || (resource.data.reportedByUid != null && resource.data.reportedByUid == request.auth.uid)
+      );
+      allow update: if isOperator()
+        || (
+          isAuthenticated()
+          && resource.data.reportedByUid == request.auth.uid
+          && request.resource.data.reportedByUid == request.auth.uid
+          && resource.data.sosCancelled == false
+          && request.resource.data.sosCancelled == true
+          && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+            "sosCancelled", "cancelledAt", "title", "body"
+          ])
+        );
+      allow delete: if false;
+    }
+
+    match /quickEmergencyServices/{serviceId} {
+      allow read: if true;
+      allow write: if isOperator();
+    }
+
+    match /ambulance_requests/{requestId} {
+      allow create: if isAuthenticated()
+        && request.resource.data.userId == request.auth.uid;
+      allow read, update: if isAuthenticated() && (
+        isOperator() || resource.data.userId == request.auth.uid
+      );
+      allow delete: if false;
+    }
+
+    match /fire_dispatches/{dispatchId} {
+      allow create: if isAuthenticated()
+        && request.resource.data.userId == request.auth.uid;
+      allow read: if isAuthenticated() && (
+        isOperator() || resource.data.userId == request.auth.uid
+      );
+      allow update: if isOperator()
+        || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow delete: if false;
+    }
+
+    match /policeAlerts/{docId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /policeReports/{docId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /securityRequests/{docId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /unifiedRequests/{docId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /operatorChats/{uid}/{document=**} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /training/courses/{courseId} {
+      allow read: if true;
+      allow create, update, delete: if isOperator();
+
+      match /videos/{videoId} {
+        allow read: if true;
+        allow create, update, delete: if isOperator();
+      }
+    }
+
+    match /training/enrollments/{enrollmentId} {
+      allow create: if isAuthenticated()
+        && request.resource.data.userId == request.auth.uid;
+      allow read: if isAuthenticated() && (
+        isOperator() || resource.data.userId == request.auth.uid
+      );
+      allow update: if isAuthenticated()
+        && resource.data.userId == request.auth.uid;
+      allow delete: if false;
+    }
+
+    match /training/progress_history/{historyId} {
+      allow create: if isAuthenticated()
+        && request.resource.data.userId == request.auth.uid;
+      allow read: if isAuthenticated() && (
+        isOperator() || resource.data.userId == request.auth.uid
+      );
+      allow update, delete: if false;
+    }
+
+    match /training/certificates/{certificateId} {
+      allow read: if isAuthenticated() && (
+        isOperator() || resource.data.userId == request.auth.uid
+      );
+      allow create: if isOperator();
+      allow update, delete: if false;
+    }
+
+    match /training/achievements/{achievementId} {
+      allow read: if true;
+      allow create, update, delete: if isOperator();
+    }
+
+    match /training/user_achievements/{userAchievementId} {
+      allow create: if isAuthenticated()
+        && request.resource.data.userId == request.auth.uid;
+      allow read: if isAuthenticated() && (
+        isOperator() || resource.data.userId == request.auth.uid
+      );
+      allow update, delete: if false;
     }
 
     match /{document=**} {

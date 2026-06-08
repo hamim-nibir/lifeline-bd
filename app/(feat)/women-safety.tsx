@@ -9,13 +9,15 @@ import {
     TextInput,
     Linking,
     Modal,
+    Animated, Easing,
+    Dimensions,
 } from "react-native";
 import { useRouter } from "expo-router";
 import * as Location from "expo-location";
 import MapView, { Marker } from "react-native-maps";
 import { useAuthStore } from "../../store/authStore";
 import { db } from "../../services/firebase";
-import { getUserProfile } from "../../services/auth";
+import { getUserProfile, logoutUser } from "../../services/auth";
 import {
     doc,
     setDoc,
@@ -30,7 +32,7 @@ import {
 
 import VerificationGuard from "../../components/ui/VerificationGuard";
 import { useVerification } from "../../hooks/useVerification";
-import Logo from "../../components/ui/logo";
+import AppHeader from "../../components/featHeader";
 
 type Contact = {
     id: string;
@@ -39,6 +41,7 @@ type Contact = {
     whatsapp: string;
     facebook: string;
 };
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 const EMPTY_FORM = { name: "", phone: "", whatsapp: "", facebook: "" };
 
@@ -62,17 +65,54 @@ export default function WomenSafetyScreen() {
     const [modalVisible, setModalVisible] = useState(false);
     const [editingContact, setEditingContact] = useState<Contact | null>(null);
     const [form, setForm] = useState(EMPTY_FORM);
+
+    // ── Hooks ──
+    const headerAnim = useRef(new Animated.Value(0)).current;
+    const headerOpacity = useRef(new Animated.Value(1)).current;
+    const [sidebarVisible, setSidebarVisible] = useState(false);
+    const sidebarAnim = useRef(new Animated.Value(SCREEN_WIDTH)).current;
+
+    // ── Sidebar open/close ──
+    const openSidebar = () => {
+        setSidebarVisible(true);
+        Animated.timing(sidebarAnim, {
+            toValue: 0,
+            duration: 320,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: true,
+        }).start();
+    };
+
+    const closeSidebar = () => {
+        Animated.timing(sidebarAnim, {
+            toValue: SCREEN_WIDTH,
+            duration: 280,
+            easing: Easing.in(Easing.cubic),
+            useNativeDriver: true,
+        }).start(() => setSidebarVisible(false));
+    };
+
+    const handleLogout = async () => {
+        closeSidebar();
+        await logoutUser();
+        router.replace("/login");
+    };
+
+    const handleFeaturePress = (route: string) => {
+        router.push(route as any);
+    };
+
     const [savingContact, setSavingContact] = useState(false);
 
-        // verification
-        const [profile, setProfile] = useState<any>(null);
-        const { showGuard, setShowGuard, requireVerified } = useVerification();
-    
-        // ── Fetch profile to check verification status ──
-        useEffect(() => {
-            if (!uid) return;
-            getUserProfile(uid).then(setProfile).catch(console.error);
-        }, [uid]);
+    // verification
+    const [profile, setProfile] = useState<any>(null);
+    const { showGuard, setShowGuard, requireVerified } = useVerification();
+
+    // ── Fetch profile ──
+    useEffect(() => {
+        if (!uid) return;
+        getUserProfile(uid).then(setProfile).catch(console.error);
+    }, [uid]);
 
     // ── Fetch location on mount ──
     useEffect(() => {
@@ -124,7 +164,7 @@ export default function WomenSafetyScreen() {
         );
     };
 
-    // ── Send Facebook message (opens messenger) ──
+    // ── Send Facebook message ──
     const sendFacebook = (profileUrl: string, message: string) => {
         if (!profileUrl) return;
         Linking.openURL(profileUrl).catch(() =>
@@ -156,20 +196,48 @@ export default function WomenSafetyScreen() {
         setActivating(true);
         try {
             if (!isActivated) {
+                const mapsLink = `https://maps.google.com/?q=${location.latitude},${location.longitude}`;
+
+                // 1. Write to panicAlerts (for dashboard badge count)
                 await setDoc(doc(db, "panicAlerts", uid), {
                     uid,
                     nickname: nickname ?? "Unknown",
+                    phone: profile?.phone ?? "Not provided",
+                    name: profile?.name ?? nickname ?? "Unknown",
                     latitude: location.latitude,
                     longitude: location.longitude,
+                    mapsLink,
                     activatedAt: serverTimestamp(),
                     active: true,
                     status: "active",
                 });
+
+                // 2. Write to notifications so operators see it ← THIS WAS MISSING
+                await addDoc(collection(db, "notifications"), {
+                    type: "panicAlert",
+                    title: "🆘 Women Safety Panic Alert",
+                    body: `${nickname ?? "A user"} has activated panic mode and needs immediate help!`,
+                    reportedBy: nickname ?? "Unknown",
+                    reportedByUid: uid,
+                    citizenName: profile?.name ?? nickname ?? "Unknown",
+                    citizenPhone: profile?.phone ?? "Not provided",
+                    severity: "high",
+                    read: false,
+                    resolved: false,
+                    assignedVolunteer: null,
+                    location: {
+                        latitude: location.latitude,
+                        longitude: location.longitude,
+                        mapsLink,
+                    },
+                    createdAt: serverTimestamp(),
+                });
+
                 setIsActivated(true);
                 notifyContacts(location);
                 Alert.alert(
                     "🚨 Panic Mode Activated",
-                    "Your location has been shared and contacts notified!"
+                    "Operators and your contacts have been notified!"
                 );
             } else {
                 await deleteDoc(doc(db, "panicAlerts", uid));
@@ -278,45 +346,46 @@ export default function WomenSafetyScreen() {
         <View style={{ flex: 1, backgroundColor: "#f9fafb" }}>
 
             {/* Header */}
-            <View style={{
-                backgroundColor: "#f97316", paddingTop: 56, paddingBottom: 20,
-                paddingHorizontal: 20, flexDirection: "row", alignItems: "center", gap: 14,
-            }}>
-                <TouchableOpacity
-                    onPress={() => router.back()}
-                    style={{
-                        backgroundColor: "rgba(255,255,255,0.2)", width: 36, height: 36,
-                        borderRadius: 18, alignItems: "center", justifyContent: "center",
-                    }}
-                >
-                    <Text style={{ color: "#fff", fontSize: 18, fontWeight: "700" }}>←</Text>
-                </TouchableOpacity>
-                <View>
-                    <Text style={{ color: "#fff", fontSize: 20, fontWeight: "700" }}>Safety Panic Mode</Text>
-                    <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: 12, marginTop: 1 }}>
-                        Activate panic mode to alert emergency services
-                    </Text>
-                </View>
-            </View>
+            <AppHeader
+                headerAnim={headerAnim}
+                headerOpacity={headerOpacity}
+                onOpenSidebar={openSidebar}
+            />
 
             {/* ── Scrollable Main Content ── */}
             <ScrollView
                 style={{ flex: 1 }}
-                contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+                contentContainerStyle={{ paddingHorizontal: 12, paddingTop: 12, paddingBottom: 40 }}
                 showsVerticalScrollIndicator={false}
             >
-                {/* Verification warning banner — shown only if not verified */}
+                {/* Hero */}
+                <View style={{
+                    backgroundColor: "#c4451a",
+                    borderRadius: 16,
+                    padding: 16,
+                    marginBottom: 12,
+                }}>
+                    <View style={{
+                        width: 38, height: 38, borderRadius: 9,
+                        backgroundColor: "rgba(255,255,255,0.2)",
+                        alignItems: "center", justifyContent: "center", marginBottom: 8,
+                    }}>
+                        <Text style={{ fontSize: 18 }}>🛡️</Text>
+                    </View>
+                    <Text style={{ color: "#fff", fontSize: 20, fontWeight: "900", lineHeight: 24 }}>
+                        Women{"\n"}Safety Panic Mode
+                    </Text>
+                    <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: 11, marginTop: 4 }}>
+                        Activate in emergencies to notify your important contacts with your location.
+                    </Text>
+                </View>
+
+                {/* Verification warning */}
                 {profile && profile.verificationStatus !== "verified" && (
                     <View style={{
-                        backgroundColor: "#fff7ed",
-                        borderWidth: 1,
-                        borderColor: "#fed7aa",
-                        borderRadius: 12,
-                        padding: 12,
-                        marginBottom: 16,
-                        flexDirection: "row",
-                        alignItems: "center",
-                        gap: 10,
+                        backgroundColor: "#fff7ed", borderWidth: 1, borderColor: "#fed7aa",
+                        borderRadius: 12, padding: 12, marginBottom: 12,
+                        flexDirection: "row", alignItems: "center", gap: 10,
                     }}>
                         <Text style={{ fontSize: 18 }}>⚠️</Text>
                         <View style={{ flex: 1 }}>
@@ -324,27 +393,23 @@ export default function WomenSafetyScreen() {
                                 Account not verified
                             </Text>
                             <Text style={{ color: "#b45309", fontSize: 12, marginTop: 2 }}>
-                                Verify your account to activate panic mode
+                                Verify your account to activate urgent alert
                             </Text>
                         </View>
                         <TouchableOpacity
                             onPress={() => router.push("/(tabs)/profile" as any)}
                             style={{
-                                backgroundColor: "#f97316",
-                                borderRadius: 8,
-                                paddingHorizontal: 10,
-                                paddingVertical: 5,
+                                backgroundColor: "#c4451a", borderRadius: 8,
+                                paddingHorizontal: 10, paddingVertical: 5,
                             }}
                         >
-                            <Text style={{ color: "#fff", fontSize: 11, fontWeight: "700" }}>
-                                Verify
-                            </Text>
+                            <Text style={{ color: "#fff", fontSize: 11, fontWeight: "700" }}>Verify</Text>
                         </TouchableOpacity>
                     </View>
                 )}
 
                 {/* Activate Button */}
-                <View style={{ alignItems: "center", marginBottom: 24 }}>
+                <View style={{ alignItems: "center", marginBottom: 12 }}>
                     <TouchableOpacity
                         onPress={() => requireVerified(profile, handleTogglePanic)}
                         disabled={activating || loading}
@@ -409,7 +474,7 @@ export default function WomenSafetyScreen() {
                     overflow: "hidden",
                     borderWidth: 1,
                     borderColor: "#e5e7eb",
-                    marginBottom: 16,
+                    marginBottom: 12,
                 }}>
                     {loading ? (
                         <View style={{
@@ -582,36 +647,6 @@ export default function WomenSafetyScreen() {
                         </View>
                     )}
                 </View>
-
-                {/* ── Emergency Call Button ── */}
-                <TouchableOpacity
-                    onPress={handleEmergencyCall}
-                    style={{
-                        backgroundColor: "#dc2626",
-                        borderRadius: 16,
-                        paddingVertical: 18,
-                        alignItems: "center",
-                        flexDirection: "row",
-                        justifyContent: "center",
-                        gap: 10,
-                        elevation: 4,
-                        shadowColor: "#dc2626",
-                        shadowOffset: { width: 0, height: 3 },
-                        shadowOpacity: 0.3,
-                        shadowRadius: 6,
-                    }}
-                    activeOpacity={0.85}
-                >
-                    <Text style={{ fontSize: 24 }}>📞</Text>
-                    <View>
-                        <Text style={{ color: "#fff", fontWeight: "800", fontSize: 16 }}>
-                            Emergency Call
-                        </Text>
-                        <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 12 }}>
-                            Calls 999 immediately
-                        </Text>
-                    </View>
-                </TouchableOpacity>
             </ScrollView>
 
             {/* ── Contact Form Modal ── */}

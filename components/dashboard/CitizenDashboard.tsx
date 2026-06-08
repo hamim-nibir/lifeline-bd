@@ -85,6 +85,13 @@ const CITIZEN_FEATURES: Feature[] = [
     route: "/settings",
     color: "#f8fafc",
   },
+  {
+    icon: "📚",
+    name: "Training",
+    desc: "First aid & skills",
+    route: "/(feat)/training-resources",
+    color: "#eef2ff",
+  },
 ];
 
 export default function CitizenDashboard() {
@@ -153,7 +160,6 @@ export default function CitizenDashboard() {
         contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Section label */}
         <Text style={{
           color: "#374151",
           fontSize: 16,

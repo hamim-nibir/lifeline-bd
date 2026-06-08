@@ -5,6 +5,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { db } from "../../services/firebase";
+import { useAuthStore } from "../../store/authStore";
 import {
   collection, query, orderBy,
   onSnapshot, updateDoc, doc, where,
@@ -28,11 +29,18 @@ type PanicAlert = {
 
 export default function OperatorAlertsScreen() {
   const router = useRouter();
+  const { accountType } = useAuthStore();
   const [alerts, setAlerts] = useState<PanicAlert[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // ── Real-time listener filtered to panicAlert only ──
+  useEffect(() => {
+    if (accountType && accountType !== "operator") {
+      router.replace("/(tabs)");
+    }
+  }, [accountType, router]);
+
+  // ── Real-time listener filtered to panic alerts ──
   useEffect(() => {
     const q = query(
       collection(db, "notifications"),
@@ -49,7 +57,7 @@ export default function OperatorAlertsScreen() {
       setLoading(false);
       setRefreshing(false);
     }, (err) => {
-      console.error("Failed to fetch panic alerts:", err);
+      console.warn("Failed to fetch panic alerts:", err);
       setLoading(false);
       setRefreshing(false);
     });
