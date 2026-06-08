@@ -10,6 +10,8 @@ import {
   collection, query, where,
   orderBy, getDocs,
 } from "firebase/firestore";
+import { useTranslation } from "../../hooks/useTranslation";
+import { interpolate } from "../../i18n/reportHelpers";
 
 type HistoryItem = {
   id: string;
@@ -30,12 +32,15 @@ const STATUS_COLORS: Record<string, { bg: string; text: string; border: string }
 const TYPE_CONFIG: Record<string, { icon: string; label: string; color: string }> = {
   policeReport:    { icon: "🚔", label: "Police Report",   color: "#1a4a4a" },
   accidentReport:  { icon: "🚨", label: "Accident Report", color: "#7c3aed" },
+  disasterAlert:   { icon: "🌩️", label: "Disaster Alert",  color: "#5b21b6" },
+  citizenReport:   { icon: "📋", label: "Citizen Report",    color: "#c4451a" },
   unifiedRequest:  { icon: "⚡", label: "Unified Request", color: "#c4451a" },
 };
 
 export default function HistoryScreen() {
   const router = useRouter();
   const { user } = useAuthStore();
+  const { t } = useTranslation();
   const uid = user?.uid ?? "";
 
   const [items, setItems]         = useState<HistoryItem[]>([]);
@@ -79,6 +84,42 @@ export default function HistoryScreen() {
           status: data.status ?? "pending",
           createdAt: data.createdAt,
           collection: "accidentReports",
+        });
+      });
+
+      // Fetch disaster alerts
+      const dSnap = await getDocs(query(
+        collection(db, "disasterAlerts"),
+        where("uid", "==", uid),
+        orderBy("createdAt", "desc")
+      ));
+      dSnap.docs.forEach((d) => {
+        const data = d.data();
+        allItems.push({
+          id: d.id,
+          type: "disasterAlert",
+          title: `Disaster Alert — ${data.disasterType}`,
+          status: data.status ?? "pending",
+          createdAt: data.createdAt,
+          collection: "disasterAlerts",
+        });
+      });
+
+      // Fetch citizen reports (Report tab)
+      const cSnap = await getDocs(query(
+        collection(db, "citizenReports"),
+        where("uid", "==", uid),
+        orderBy("createdAt", "desc")
+      ));
+      cSnap.docs.forEach((d) => {
+        const data = d.data();
+        allItems.push({
+          id: d.id,
+          type: "citizenReport",
+          title: `${data.categoryLabel ?? "Report"} — ${data.status ?? "pending"}`,
+          status: data.status ?? "pending",
+          createdAt: data.createdAt,
+          collection: "citizenReports",
         });
       });
 
@@ -146,9 +187,9 @@ export default function HistoryScreen() {
           <Text style={{ color: "#fff", fontSize: 18, fontWeight: "700" }}>←</Text>
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={{ color: "#fff", fontSize: 20, fontWeight: "700" }}>My History</Text>
+          <Text style={{ color: "#fff", fontSize: 20, fontWeight: "700" }}>{t("historyScreen.myHistory")}</Text>
           <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: 12, marginTop: 1 }}>
-            {items.length} submission{items.length !== 1 ? "s" : ""} total
+            {interpolate(t("historyScreen.submissions"), { count: String(items.length) })}
           </Text>
         </View>
       </View>
@@ -156,7 +197,7 @@ export default function HistoryScreen() {
       {loading ? (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
           <ActivityIndicator size="large" color="#1a4a4a" />
-          <Text style={{ color: "#9ca3af", marginTop: 12 }}>Loading history...</Text>
+          <Text style={{ color: "#9ca3af", marginTop: 12 }}>{t("historyScreen.loading")}</Text>
         </View>
       ) : (
         <ScrollView
@@ -178,15 +219,20 @@ export default function HistoryScreen() {
             }}>
               <Text style={{ fontSize: 40, marginBottom: 12 }}>📋</Text>
               <Text style={{ color: "#374151", fontWeight: "700", fontSize: 16 }}>
-                No history yet
+                {t("historyScreen.empty")}
               </Text>
               <Text style={{ color: "#9ca3af", fontSize: 13, marginTop: 6, textAlign: "center" }}>
-                Your submitted reports and emergency requests will appear here
+                {t("historyScreen.emptyHint")}
               </Text>
             </View>
           ) : (
             items.map((item) => {
-              const config = TYPE_CONFIG[item.type] ?? { icon: "📋", label: item.type, color: "#374151" };
+              const base = TYPE_CONFIG[item.type] ?? { icon: "📋", label: item.type, color: "#374151" };
+              const typeKey = `historyScreen.types.${item.type}` as const;
+              const config = {
+                ...base,
+                label: t(typeKey, base.label),
+              };
               const statusColor = STATUS_COLORS[item.status] ?? STATUS_COLORS.pending;
               return (
                 <View key={item.id} style={{

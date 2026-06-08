@@ -7,6 +7,8 @@ import {
 import { useRouter } from "expo-router";
 import * as Location from "expo-location";
 import { db } from "../../services/firebase";
+import { useTranslation } from "../../hooks/useTranslation";
+import { interpolate } from "../../i18n/reportHelpers";
 import { useAuthStore } from "../../store/authStore";
 import {
   collection, query, where, getDocs,
@@ -96,6 +98,7 @@ const formatLastDonation = (timestamp: any): string => {
 // ─── Main Screen ─────────────────────────────────────────
 export default function BloodBanksScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const { user, nickname } = useAuthStore();
   const uid = user?.uid ?? "";
 
@@ -366,7 +369,7 @@ export default function BloodBanksScreen() {
         </View>
 
         <Text style={{ color: "#fff", fontSize: 24, fontWeight: "700" }}>
-          Blood Donors
+          {t("services.bloodBanks.title")}
         </Text>
         <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: 12, marginTop: 2 }}>
           {locationLoading

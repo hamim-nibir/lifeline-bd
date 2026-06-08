@@ -15,6 +15,9 @@ import {
   TrackingAccuracy, VerificationStatus,
 } from "../../types";
 import Logo from "../../components/ui/logo";
+import LanguageSwitcher from "../../components/LanguageSwitcher";
+import { useTranslation } from "../../hooks/useTranslation";
+import { interpolate } from "../../i18n/reportHelpers";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { db } from "../../services/firebase";
 import {
@@ -36,6 +39,7 @@ type EmergencyContact = {
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, nickname, accountType } = useAuthStore();
+  const { t } = useTranslation();
 
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -180,9 +184,9 @@ export default function ProfileScreen() {
       await updateUserProfile(user.uid, editForm);
       setProfile((prev: any) => ({ ...prev, ...editForm }));
       setEditModal(false);
-      Alert.alert("✅ Saved", "Your profile has been updated.");
+      Alert.alert(`✅ ${t("common.save")}`, t("profile.saved"));
     } catch {
-      Alert.alert("Error", "Failed to save. Please try again.");
+      Alert.alert(t("common.error"), t("profile.saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -190,9 +194,9 @@ export default function ProfileScreen() {
 
   // ── Add emergency contact ──
   const handleAddContact = async () => {
-    if (!contactForm.name.trim()) return Alert.alert("Required", "Please enter a name.");
-    if (!contactForm.phone.trim()) return Alert.alert("Required", "Please enter a phone number.");
-    if (contacts.length >= 3) return Alert.alert("Limit Reached", "You can only add up to 3 emergency contacts.");
+    if (!contactForm.name.trim()) return Alert.alert(t("common.required"), t("profile.contactNameRequired"));
+    if (!contactForm.phone.trim()) return Alert.alert(t("common.required"), t("profile.contactPhoneRequired"));
+    if (contacts.length >= 3) return Alert.alert(t("common.required"), t("profile.contactLimit"));
     if (!user?.uid) return;
     setSavingContact(true);
     try {
@@ -205,7 +209,7 @@ export default function ProfileScreen() {
       setContactForm({ name: "", phone: "", relation: "" });
       setAddContactModal(false);
     } catch {
-      Alert.alert("Error", "Failed to add contact. Please try again.");
+      Alert.alert(t("common.error"), t("profile.contactAddFailed"));
     } finally {
       setSavingContact(false);
     }
@@ -214,19 +218,19 @@ export default function ProfileScreen() {
   // ── Remove emergency contact ──
   const handleRemoveContact = (contactId: string, contactName: string) => {
     Alert.alert(
-      "Remove Contact",
-      `Remove ${contactName} from emergency contacts?`,
+      t("profile.removeContact"),
+      interpolate(t("profile.removeContactConfirm"), { name: contactName }),
       [
-        { text: "Cancel", style: "cancel" },
+        { text: t("common.cancel"), style: "cancel" },
         {
-          text: "Remove",
+          text: t("common.remove"),
           style: "destructive",
           onPress: async () => {
             if (!user?.uid) return;
             try {
               await deleteDoc(doc(db, "users", user.uid, "importantContacts", contactId));
             } catch {
-              Alert.alert("Error", "Failed to remove contact.");
+              Alert.alert(t("common.error"), t("profile.removeFailed"));
             }
           },
         },
@@ -235,8 +239,8 @@ export default function ProfileScreen() {
   };
 
   const handleSubmitVerification = async () => {
-    if (!nidNumber.trim()) { Alert.alert("Required", "Please enter your NID number."); return; }
-    if (nidNumber.trim().length < 10) { Alert.alert("Invalid", "NID number must be at least 10 digits."); return; }
+    if (!nidNumber.trim()) { Alert.alert(t("common.required"), t("profile.nidRequired")); return; }
+    if (nidNumber.trim().length < 10) { Alert.alert(t("common.invalid"), t("profile.nidInvalid")); return; }
     if (!user?.uid) return;
     setNidSubmitting(true);
     try {
@@ -246,9 +250,9 @@ export default function ProfileScreen() {
       );
       setProfile((prev: any) => ({ ...prev, verificationStatus: "pending" }));
       setNidModal(false);
-      Alert.alert("✅ Request Submitted", "Your verification request has been sent to operators.");
+      Alert.alert(`✅ ${t("common.submit")}`, t("profile.verificationSubmitted"));
     } catch (err: any) {
-      Alert.alert("Error", err.message ?? "Failed to submit. Please try again.");
+      Alert.alert(t("common.error"), err.message ?? t("profile.verificationSubmitFailed"));
     } finally {
       setNidSubmitting(false);
     }
@@ -295,7 +299,7 @@ export default function ProfileScreen() {
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#f9fafb" }}>
         <ActivityIndicator size="large" color="#f97316" />
-        <Text style={{ color: "#9ca3af", marginTop: 12 }}>Loading profile...</Text>
+        <Text style={{ color: "#9ca3af", marginTop: 12 }}>{t("profile.loading")}</Text>
       </View>
     );
   }
@@ -318,14 +322,14 @@ export default function ProfileScreen() {
               borderWidth: 1, borderColor: "rgba(255,255,255,0.35)",
             }}
           >
-            <Text style={{ color: "#fff", fontSize: 13, fontWeight: "600" }}>Logout</Text>
+            <Text style={{ color: "#fff", fontSize: 13, fontWeight: "600" }}>{t("common.logout")}</Text>
           </TouchableOpacity>
         </View>
         <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 13, fontWeight: "500" }}>
-          Welcome back, {nickname ?? "User"}
+          {interpolate(t("profile.welcomeBack"), { name: nickname ?? t("messages.user") })}
         </Text>
         <Text style={{ color: "#fff", fontSize: 24, fontWeight: "700", marginTop: 2 }}>
-          Profile Settings
+          {t("profile.title")}
         </Text>
       </View>
 
@@ -341,12 +345,13 @@ export default function ProfileScreen() {
           />
         }
       >
+        <LanguageSwitcher />
         <VerificationBadge />
 
         {/* ── Personal Information ── */}
         <View style={cardStyle}>
           <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-            <Text style={sectionTitle}>👤 Personal Information</Text>
+            <Text style={sectionTitle}>👤 {t("profile.personalInfo")}</Text>
             <TouchableOpacity
               onPress={openEditModal}
               style={{
@@ -355,7 +360,7 @@ export default function ProfileScreen() {
                 borderWidth: 1, borderColor: "#fed7aa",
               }}
             >
-              <Text style={{ color: "#f97316", fontSize: 13, fontWeight: "700" }}>✏️ Edit</Text>
+              <Text style={{ color: "#f97316", fontSize: 13, fontWeight: "700" }}>✏️ {t("profile.edit")}</Text>
             </TouchableOpacity>
           </View>
           <View style={{ alignItems: "center", marginBottom: 20 }}>
@@ -368,7 +373,7 @@ export default function ProfileScreen() {
             </View>
             {verificationStatus === "verified" && (
               <View style={{ marginTop: 6, backgroundColor: "#f0fdf4", borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3 }}>
-                <Text style={{ color: "#15803d", fontSize: 11, fontWeight: "700" }}>✅ Verified</Text>
+                <Text style={{ color: "#15803d", fontSize: 11, fontWeight: "700" }}>✅ {t("profile.verified")}</Text>
               </View>
             )}
           </View>
@@ -381,7 +386,7 @@ export default function ProfileScreen() {
 
         {/* ── Health Information ── */}
         <View style={cardStyle}>
-          <Text style={sectionTitle}>🩺 Health Information</Text>
+          <Text style={sectionTitle}>🩺 {t("profile.healthInfo")}</Text>
           <View style={{ marginTop: 12 }}>
             <InfoRow label="Blood Group" value={profile?.bloodGroup || "—"} />
             <InfoRow label="Blood Pressure" value={profile?.bloodPressure || "—"} />
@@ -402,7 +407,7 @@ export default function ProfileScreen() {
             activeOpacity={0.7}
           >
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <Text style={sectionTitle}>📞 Emergency Contacts</Text>
+              <Text style={sectionTitle}>📞 {t("profile.emergencyContacts")}</Text>
               {contacts.length > 0 && (
                 <View style={{
                   backgroundColor: "#f97316", borderRadius: 10,
@@ -530,7 +535,7 @@ export default function ProfileScreen() {
 
         {/* ── Privacy & Security ── */}
         <View style={cardStyle}>
-          <Text style={sectionTitle}>🔒 Privacy & Security</Text>
+          <Text style={sectionTitle}>🔒 {t("profile.privacySecurity")}</Text>
           <View style={{ marginTop: 12 }}>
             <ToggleRow label="Show Health Information" desc="Display your health profile to emergency responders" value={profile?.showHealthInfo ?? true} onToggle={(v) => handleToggle("showHealthInfo", v)} />
             <ToggleRow label="Show Contact Information" desc="Make your contact details visible to verified services" value={profile?.showContactInfo ?? true} onToggle={(v) => handleToggle("showContactInfo", v)} />
@@ -543,7 +548,7 @@ export default function ProfileScreen() {
 
         {/* ── Location & Tracking ── */}
         <View style={cardStyle}>
-          <Text style={sectionTitle}>📍 Location & Tracking</Text>
+          <Text style={sectionTitle}>📍 {t("profile.locationTracking")}</Text>
           <View style={{ marginTop: 12 }}>
             <ToggleRow label="Share Real-time Location" desc="Share your live location with emergency services" value={profile?.shareRealtimeLocation ?? true} onToggle={(v) => handleToggle("shareRealtimeLocation", v)} />
             <ToggleRow label="Location History" desc="Save your location history for better emergency response" value={profile?.locationHistory ?? true} onToggle={(v) => handleToggle("locationHistory", v)} last />

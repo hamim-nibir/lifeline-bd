@@ -1,4 +1,5 @@
 import { View, Text, TouchableOpacity, Animated } from "react-native";
+import { useTranslation } from "../../hooks/useTranslation";
 
 type Service = {
   label: string;
@@ -23,6 +24,8 @@ export default function EmergencyGrid({
   cardScales,
   onPress,
 }: Props) {
+  const { t } = useTranslation();
+
   return (
     <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12, marginBottom: 8 }}>
       {services.map((s, i) => (
@@ -94,7 +97,7 @@ export default function EmergencyGrid({
               }}
             >
               <Text style={{ fontSize: 10, color: s.accent, fontWeight: "700" }}>
-                TAP TO CALL
+                {t("home.tapToCall")}
               </Text>
             </View>
           </TouchableOpacity>

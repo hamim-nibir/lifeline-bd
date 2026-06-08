@@ -5,6 +5,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useAuthStore } from "../../store/authStore";
+import { useTranslation } from "../../hooks/useTranslation";
 import { db } from "../../services/firebase";
 import {
   collection, query, where,
@@ -23,6 +24,7 @@ type ChatPreview = {
 export default function ChatListScreen() {
   const router = useRouter();
   const { user, nickname } = useAuthStore();
+  const { t } = useTranslation();
   const uid = user?.uid ?? "";
 
   const [chats, setChats] = useState<ChatPreview[]>([]);
@@ -48,13 +50,13 @@ export default function ChatListScreen() {
         const otherUid = participants.find((p) => p !== uid) ?? "";
 
         // Fetch other user's name
-        let otherName = "User";
+        let otherName = t("messages.user");
         if (otherUid) {
           try {
             const userSnap = await getDoc(doc(db, "users", otherUid));
             if (userSnap.exists()) {
               const userData = userSnap.data();
-              otherName = userData.nickname ?? userData.name ?? "User";
+              otherName = userData.nickname ?? userData.name ?? t("messages.user");
             }
           } catch {}
         }
@@ -94,7 +96,7 @@ export default function ChatListScreen() {
     const date: Date = timestamp.toDate();
     const now = new Date();
     const diff = Math.floor((now.getTime() - date.getTime()) / 1000);
-    if (diff < 60) return "now";
+    if (diff < 60) return t("messages.now");
     if (diff < 3600) return `${Math.floor(diff / 60)}m`;
     if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
     return date.toLocaleDateString("en-BD", { day: "2-digit", month: "short" });
@@ -126,7 +128,7 @@ export default function ChatListScreen() {
           <View style={{ flex: 1, marginLeft: 12 }}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 2 }}>
               <Text style={{ color: "#fff", fontSize: 22, fontWeight: "700" }}>
-                Messages
+                {t("messages.title")}
               </Text>
               {totalUnread > 0 && (
                 <View style={{
@@ -146,7 +148,7 @@ export default function ChatListScreen() {
       {loading ? (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
           <ActivityIndicator size="large" color="#f97316" />
-          <Text style={{ color: "#9ca3af", marginTop: 12 }}>Loading chats...</Text>
+          <Text style={{ color: "#9ca3af", marginTop: 12 }}>{t("messages.loading")}</Text>
         </View>
       ) : (
         <ScrollView
@@ -168,10 +170,10 @@ export default function ChatListScreen() {
             }}>
               <Text style={{ fontSize: 52, marginBottom: 16 }}>💬</Text>
               <Text style={{ color: "#374151", fontWeight: "700", fontSize: 18 }}>
-                No conversations yet
+                {t("messages.emptyTitle")}
               </Text>
               <Text style={{ color: "#9ca3af", fontSize: 14, marginTop: 8, textAlign: "center", lineHeight: 20 }}>
-                When someone contacts you or you respond to a blood request, your chats will appear here.
+                {t("messages.emptyHint")}
               </Text>
             </View>
           ) : (
@@ -240,7 +242,7 @@ export default function ChatListScreen() {
                       }}
                       numberOfLines={1}
                     >
-                      {chat.lastMessage || "Start a conversation"}
+                      {chat.lastMessage || t("messages.startConversation")}
                     </Text>
 
                     {/* Unread badge */}

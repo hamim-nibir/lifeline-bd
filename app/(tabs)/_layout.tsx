@@ -20,7 +20,15 @@ function TabIcon({ focused, icon, label }: TabIconProps) {
   );
 }
 
+function ReportTabIcon({ focused }: { focused: boolean }) {
+  const accountType = useAuthStore((s) => s.accountType);
+  const { t } = useTranslation();
+  const label = accountType === "operator" ? t("tabs.review") : t("tabs.report");
+  return <TabIcon focused={focused} icon="📋" label={label} />;
+}
+
 export default function TabLayout() {
+  const { t } = useTranslation();
   return (
     <View style={{ flex: 1 }}>
       <WelcomeBanner />
