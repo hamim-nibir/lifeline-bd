@@ -1,29 +1,173 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // ── Helper functions ──
-    function isSignedIn() {
+
+    // ─── Helpers ───────────────────────────────────────────────────────────
+
+    function isAuthenticated() {
       return request.auth != null;
     }
-    
+
     function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
+      return isAuthenticated() && request.auth.uid == userId;
     }
-    
+
+    function userProfile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function userExists() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function accountType() {
+      return userExists() ? userProfile().data.accountType : '';
+    }
+
     function isOperator() {
-      return isSignedIn()
-        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.accountType == "operator";
+      return isAuthenticated() && accountType() == 'operator';
     }
-    
+
+    function isAdmin() {
+      return isAuthenticated() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        accountType() == 'admin'
+      );
+    }
+
+    function isOperatorOrAdmin() {
+      return isOperator() || isAdmin();
+    }
+
+    function operatorOnlyDispatchKeys() {
+      return [
+        'statusIndex',
+        'status',
+        'assignedVehicleId',
+        'assignedVehicle',
+        'vehicleId',
+        'operatorId',
+        'operatorUid',
+        'dispatchedAt',
+        'enrouteAt',
+        'onSceneAt',
+        'containedAt',
+        'etaText',
+        'distanceKm',
+        'selectedStationName',
+        'stationLat',
+        'stationLng',
+        'stationSource',
+        'mapsLink',
+      ];
+    }
+
+    function operatorOnlyIncidentKeys() {
+      return [
+        'status',
+        'statusIndex',
+        'assignedVehicleId',
+        'assignedVehicle',
+        'vehicleId',
+        'operatorId',
+        'operatorUid',
+        'dispatchId',
+      ];
+    }
+
+    function fireDispatchDoc(dispatchId) {
+      return get(/databases/$(database)/documents/fire-dispatch/$(dispatchId));
+    }
+
+    function canReadFireDispatch(dispatchId) {
+      return fireDispatchDoc(dispatchId).data.uid == request.auth.uid
+        || isOperatorOrAdmin();
+    }
+
+    function citizenOwnsFireDispatch() {
+      return isAuthenticated() && resource.data.uid == request.auth.uid;
+    }
+
+    function citizenCreatesFireDispatch() {
+      return isAuthenticated()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.statusIndex == 0;
+    }
+
+    function citizenUpdatesFireDispatchDetailsOnly() {
+      return citizenOwnsFireDispatch()
+        && request.resource.data.uid == resource.data.uid
+        && !request.resource.data.diff(resource.data).affectedKeys()
+            .hasAny(operatorOnlyDispatchKeys());
+    }
+
+    function citizenUpdatesIncidentDetailsOnly() {
+      return isOwner(resource.data.userId)
+        && request.resource.data.userId == request.auth.uid
+        && !request.resource.data.diff(resource.data).affectedKeys()
+            .hasAny(operatorOnlyIncidentKeys());
+    }
+
+    // Vehicle / location docs should include dispatchId when assigned
+    function canReadVehicleForAssignedDispatch() {
+      return isOperatorOrAdmin()
+        || (
+          isAuthenticated()
+          && resource.data.dispatchId != null
+          && canReadFireDispatch(resource.data.dispatchId)
+        );
+    }
+
+    function incidentDoc(incidentId) {
+      return get(/databases/$(database)/documents/incidents/$(incidentId));
+    }
+
+    function incidentExists(incidentId) {
+      return exists(/databases/$(database)/documents/incidents/$(incidentId));
+    }
+
+    function isVolunteerOnIncident(incidentId) {
+      return isAuthenticated()
+        && accountType() == 'volunteer'
+        && incidentExists(incidentId)
+        && request.auth.uid in incidentDoc(incidentId).data.assignedVolunteers;
+    }
+
+    function canAccessChatIncident(incidentId) {
+      return isOperatorOrAdmin()
+        || (
+          incidentExists(incidentId)
+          && incidentDoc(incidentId).data.userId == request.auth.uid
+        )
+        || isVolunteerOnIncident(incidentId);
+    }
+
+    function chatRoleForAccount() {
+      return accountType() == 'citizen' ? 'user'
+        : accountType() == 'volunteer' ? 'volunteer'
+        : accountType() == 'operator' ? 'operator'
+        : '';
+    }
+
+    function validChatMessageCreate() {
+      return isAuthenticated()
+        && request.resource.data.senderId == request.auth.uid
+        && request.resource.data.role == chatRoleForAccount()
+        && chatRoleForAccount() != ''
+        && canAccessChatIncident(request.resource.data.incidentId)
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 2000;
+    }
+
     function isAllowedContactUpdate() {
       return request.resource.data.keys().hasOnly([
         "userId", "name", "phone", "relationship",
         "notifyOnSOS", "createdAt"
       ]);
     }
-    
+
     function isAllowedSOSEventCreate() {
       return request.resource.data.keys().hasOnly([
         "userId", "userName", "latitude", "longitude",
@@ -34,120 +178,260 @@ service cloud.firestore {
       && request.resource.data.userId == request.auth.uid
       && request.resource.data.status == "active";
     }
-    
-    function isAllowedSOSEventUpdate() {
-      return request.resource.data.keys().hasOnly([
-        "userId", "userName", "latitude", "longitude", "address",
-        "status", "source", "triggeredAt", "resolvedAt", "lastLocationAt"
-      ])
-      && resource.data.userId == request.auth.uid;
-    }
 
-    // ── Users ──
-    // Any signed-in user can read (operators need to read for verification)
-    // Only owner can create their own profile
-    // Any signed-in user can update (operators approve verification on user docs)
+    // ─── Users & admins ────────────────────────────────────────────────────
+
     match /users/{userId} {
-      allow read: if isSignedIn();
+      allow read: if isOwner(userId) || isOperatorOrAdmin();
       allow create: if isOwner(userId);
-      allow update: if isSignedIn();
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
     }
 
-    // ── Important contacts (subcollection) ──
+    match /admins/{userId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // ─── Fire service dispatch (collection used by the app) ──────────────────
+
+    match /fire-dispatch/{dispatchId} {
+      allow read: if citizenOwnsFireDispatch() || isOperatorOrAdmin();
+      allow create: if citizenCreatesFireDispatch();
+      allow update: if isOperatorOrAdmin() || citizenUpdatesFireDispatchDetailsOnly();
+      allow delete: if isAdmin();
+
+      match /statusUpdates/{updateId} {
+        allow read: if citizenOwnsFireDispatch() || isOperatorOrAdmin();
+        allow create, update: if isOperatorOrAdmin();
+        allow delete: if isAdmin();
+      }
+    }
+
+    // ─── Incidents ─────────────────────────────────────────────────────────
+
+    match /incidents/{incidentId} {
+      allow read: if isOwner(resource.data.userId)
+        || isOperatorOrAdmin()
+        || (
+          isAuthenticated()
+          && accountType() == 'volunteer'
+          && request.auth.uid in resource.data.assignedVolunteers
+        );
+      allow create: if isAuthenticated()
+        && request.resource.data.userId == request.auth.uid;
+      allow update: if isOperatorOrAdmin()
+        || (
+          isOwner(resource.data.userId)
+          && request.resource.data.userId == request.auth.uid
+          && !request.resource.data.diff(resource.data).affectedKeys()
+              .hasAny(['status', 'assignedVolunteers', 'severity'])
+        );
+      allow delete: if isAdmin();
+
+      match /incidentDetails/{detailId} {
+        allow read: if isOwner(resource.data.userId) || isOperatorOrAdmin();
+        allow create: if isAuthenticated()
+          && request.resource.data.userId == request.auth.uid;
+        allow update: if isOwner(resource.data.userId) || isOperatorOrAdmin();
+        allow delete: if isOwner(resource.data.userId) || isAdmin();
+      }
+    }
+
+    // ─── Dispatches (operator assignment workflow) ───────────────────────────
+
+    match /dispatches/{dispatchId} {
+      allow read: if isOwner(resource.data.userId) || isOperatorOrAdmin();
+      allow create: if isAuthenticated()
+        && request.resource.data.userId == request.auth.uid;
+      allow update: if isOperatorOrAdmin();
+      allow delete: if isAdmin();
+
+      match /statusUpdates/{updateId} {
+        allow read: if isOwner(resource.data.userId) || isOperatorOrAdmin();
+        allow create, update: if isOperatorOrAdmin();
+        allow delete: if isAdmin();
+      }
+    }
+
+    // ─── Vehicles & GPS tracking ───────────────────────────────────────────
+    // When assigning a vehicle, set vehicle.dispatchId = fire-dispatch doc id.
+    // Location updates should copy the same dispatchId for citizen read access.
+
+    match /vehicles/{vehicleId} {
+      allow read: if canReadVehicleForAssignedDispatch();
+      allow create, update: if isOperatorOrAdmin();
+      allow delete: if isAdmin();
+
+      match /locations/{locationId} {
+        allow read: if canReadVehicleForAssignedDispatch();
+        allow create, update: if isOperatorOrAdmin();
+        allow delete: if isAdmin();
+      }
+    }
+
+    // ─── Fire stations ─────────────────────────────────────────────────────
+
+    match /fireStations/{stationId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isOperatorOrAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ─── Emergency requests ─────────────────────────────────────────────────
+
+    match /emergencyRequests/{requestId} {
+      allow read: if isOwner(resource.data.userId) || isOperatorOrAdmin();
+      allow create: if isAuthenticated()
+        && request.resource.data.userId == request.auth.uid;
+      allow update: if isOperatorOrAdmin()
+        || (
+          isOwner(resource.data.userId)
+          && request.resource.data.userId == request.auth.uid
+          && !request.resource.data.diff(resource.data).affectedKeys()
+              .hasAny(['status', 'assignedVehicleId', 'operatorId', 'operatorUid'])
+        );
+      allow delete: if isAdmin();
+    }
+
+    match /serviceTypes/{typeId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ─── Emergency chat messages ─────────────────────────────────────────────
+
+    match /messages/{messageId} {
+      allow read: if canAccessChatIncident(resource.data.incidentId);
+      allow create: if validChatMessageCreate();
+      allow update, delete: if isAdmin();
+    }
+
+    match /pushQueue/{queueId} {
+      allow create: if isAuthenticated();
+      allow read, update: if isOperatorOrAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ─── Notifications ─────────────────────────────────────────────────────
+
+    match /notifications/{notificationId} {
+      allow read: if isOperatorOrAdmin()
+        || (isAuthenticated() && resource.data.uid == request.auth.uid);
+      allow create: if isAuthenticated();
+      allow update: if isOperatorOrAdmin()
+        || (isAuthenticated() && resource.data.uid == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    // ─── Other LifelineBD collections ──────────────────────────────────────
+
+    match /emergency-services/{serviceType}/{serviceId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /services/{serviceId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /alerts/{alertId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update: if isAdmin() || isOwner(resource.data.createdBy);
+      allow delete: if isAdmin();
+    }
+
+    match /news/{newsId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /accidentReports/{reportId} {
+      allow read: if isOperatorOrAdmin() || isOwner(resource.data.userId);
+      allow create: if isAuthenticated();
+      allow update: if isOperatorOrAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /verificationRequests/{requestId} {
+      allow read: if isOperatorOrAdmin() || isOwner(resource.data.userId);
+      allow create: if isAuthenticated();
+      allow update: if isOperatorOrAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /panic-alerts/{alertId} {
+      allow read: if isOperatorOrAdmin() || isOwner(resource.data.userId);
+      allow create: if isAuthenticated();
+      allow update: if isOwner(resource.data.userId) || isOperatorOrAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /monitoring/{documentId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /user-locations/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow write: if isOwner(userId);
+    }
+
     match /users/{userId}/importantContacts/{contactId} {
       allow read, write: if isOwner(userId);
     }
 
-    // ── Panic alerts ──
     match /panicAlerts/{userId} {
-      allow read: if isSignedIn();
+      allow read: if isAuthenticated();
       allow write: if isOwner(userId);
     }
 
-    // ── Accident reports ──
-    match /accidentReports/{reportId} {
-      allow create: if isSignedIn();
-      allow read: if isSignedIn();
-      allow update: if isSignedIn();
-    }
-
-    // ── Notifications ──
-    // Citizens can create (when submitting reports)
-    // Anyone signed in can read their own or operators read all
-    // Anyone signed in can update (mark as read)
-    match /notifications/{notifId} {
-      allow create: if isSignedIn();
-      allow read: if isSignedIn() && (
-        isOperator()
-        || (resource.data.forUid != null && resource.data.forUid == request.auth.uid)
-        || (resource.data.reportedByUid != null && resource.data.reportedByUid == request.auth.uid)
-      );
-      allow update: if isSignedIn();
-      allow delete: if request.auth != null;
-    }
-
-    // ── Verification requests ──
-    // Citizens create and read, only operators can approve/reject
-    match /verificationRequests/{requestId} {
-      allow create: if isSignedIn();
-      allow read: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if false;
-    }
-
-    // ── Blood donation history ──
     match /bloodDonationHistory/{uid}/records/{recordId} {
-      allow read: if isSignedIn();
+      allow read: if isAuthenticated();
       allow write: if isOwner(uid);
     }
 
-    // ── Blood requests ──
     match /bloodRequests/{requestId} {
-      allow create: if isSignedIn();
-      allow read: if isSignedIn();
-      allow update: if isSignedIn();
+      allow create, read, update: if isAuthenticated();
     }
 
-    // ── Chats ──
     match /chats/{chatId} {
-      allow read, write: if isSignedIn();
-    }
-    
-    match /chats/{chatId}/messages/{messageId} {
-      allow read, write: if isSignedIn();
+      allow read, write: if isAuthenticated();
     }
 
-    // ── Emergency contacts (separate collection) ──
+    match /chats/{chatId}/messages/{messageId} {
+      allow read, write: if isAuthenticated();
+    }
+
     match /emergency_contacts/{contactId} {
-      allow create: if isSignedIn()
+      allow create: if isAuthenticated()
         && request.resource.data.userId == request.auth.uid
         && isAllowedContactUpdate();
-      allow read: if isSignedIn() && (
+      allow read: if isAuthenticated() && (
         resource.data.userId == request.auth.uid || isOperator()
       );
-      allow update: if isSignedIn()
+      allow update: if isAuthenticated()
         && resource.data.userId == request.auth.uid
         && request.resource.data.userId == request.auth.uid
         && isAllowedContactUpdate();
-      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
     }
 
-    // ── SOS events ──
     match /sos_events/{eventId} {
-      allow create: if isSignedIn() && isAllowedSOSEventCreate();
-      allow read: if isSignedIn() && (
+      allow create: if isAuthenticated() && isAllowedSOSEventCreate();
+      allow read: if isAuthenticated() && (
         resource.data.userId == request.auth.uid || isOperator()
       );
-      allow update: if isSignedIn() && (
+      allow update: if isAuthenticated() && (
         isOperator()
         || (
           resource.data.userId == request.auth.uid
           && (
-            (
-              request.resource.data.diff(resource.data).changedKeys().hasOnly([
-                "latitude", "longitude", "address", "lastLocationAt"
-              ])
-            )
+            request.resource.data.diff(resource.data).changedKeys().hasOnly([
+              "latitude", "longitude", "address", "lastLocationAt"
+            ])
             || (
               resource.data.status == "active"
               && request.resource.data.status == "cancelled"
@@ -161,17 +445,16 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // ── SOS alerts ──
     match /sos_alerts/{alertId} {
-      allow create: if isSignedIn()
+      allow create: if isAuthenticated()
         && request.resource.data.reportedByUid == request.auth.uid;
-      allow read: if isSignedIn() && (
+      allow read: if isAuthenticated() && (
         isOperator()
         || (resource.data.reportedByUid != null && resource.data.reportedByUid == request.auth.uid)
       );
       allow update: if isOperator()
         || (
-          isSignedIn()
+          isAuthenticated()
           && resource.data.reportedByUid == request.auth.uid
           && request.resource.data.reportedByUid == request.auth.uid
           && resource.data.sosCancelled == false
@@ -183,63 +466,51 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // ── Quick emergency services ──
     match /quickEmergencyServices/{serviceId} {
       allow read: if true;
       allow write: if isOperator();
     }
 
-    // ── Ambulance requests ──
     match /ambulance_requests/{requestId} {
-      allow create: if isSignedIn()
+      allow create: if isAuthenticated()
         && request.resource.data.userId == request.auth.uid;
-      allow read: if isSignedIn() && (
-        isOperator() || resource.data.userId == request.auth.uid
-      );
-      allow update: if isSignedIn() && (
+      allow read, update: if isAuthenticated() && (
         isOperator() || resource.data.userId == request.auth.uid
       );
       allow delete: if false;
     }
 
-    // ── Fire dispatches ──
     match /fire_dispatches/{dispatchId} {
-      allow create: if isSignedIn()
+      allow create: if isAuthenticated()
         && request.resource.data.userId == request.auth.uid;
-      allow read: if isSignedIn() && (
+      allow read: if isAuthenticated() && (
         isOperator() || resource.data.userId == request.auth.uid
       );
       allow update: if isOperator()
-        || (isSignedIn() && resource.data.userId == request.auth.uid);
+        || (isAuthenticated() && resource.data.userId == request.auth.uid);
       allow delete: if false;
     }
 
-    // ── Police alerts ──
     match /policeAlerts/{docId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isAuthenticated();
     }
 
-    // ── Police reports ──
     match /policeReports/{docId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isAuthenticated();
     }
 
-    // ── Security requests ──
     match /securityRequests/{docId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isAuthenticated();
     }
 
-    // ── Unified requests ──
     match /unifiedRequests/{docId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isAuthenticated();
     }
 
-    // ── Operator chats ──
     match /operatorChats/{uid}/{document=**} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isAuthenticated();
     }
 
-    // ── Training Platform Rules ──
     match /training/courses/{courseId} {
       allow read: if true;
       allow create, update, delete: if isOperator();
@@ -251,27 +522,27 @@ service cloud.firestore {
     }
 
     match /training/enrollments/{enrollmentId} {
-      allow create: if isSignedIn()
+      allow create: if isAuthenticated()
         && request.resource.data.userId == request.auth.uid;
-      allow read: if isSignedIn() && (
+      allow read: if isAuthenticated() && (
         isOperator() || resource.data.userId == request.auth.uid
       );
-      allow update: if isSignedIn()
+      allow update: if isAuthenticated()
         && resource.data.userId == request.auth.uid;
       allow delete: if false;
     }
 
     match /training/progress_history/{historyId} {
-      allow create: if isSignedIn()
+      allow create: if isAuthenticated()
         && request.resource.data.userId == request.auth.uid;
-      allow read: if isSignedIn() && (
+      allow read: if isAuthenticated() && (
         isOperator() || resource.data.userId == request.auth.uid
       );
       allow update, delete: if false;
     }
 
     match /training/certificates/{certificateId} {
-      allow read: if isSignedIn() && (
+      allow read: if isAuthenticated() && (
         isOperator() || resource.data.userId == request.auth.uid
       );
       allow create: if isOperator();
@@ -284,15 +555,14 @@ service cloud.firestore {
     }
 
     match /training/user_achievements/{userAchievementId} {
-      allow create: if isSignedIn()
+      allow create: if isAuthenticated()
         && request.resource.data.userId == request.auth.uid;
-      allow read: if isSignedIn() && (
+      allow read: if isAuthenticated() && (
         isOperator() || resource.data.userId == request.auth.uid
       );
       allow update, delete: if false;
     }
 
-    // ── Deny everything else ──
     match /{document=**} {
       allow read, write: if false;
     }
