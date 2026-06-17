@@ -1,18 +1,67 @@
-import { View, Text, ScrollView, TouchableOpacity } from "react-native";
+import { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useRouter } from "expo-router";
 import { useAuthStore } from "../../store/authStore";
 import { logoutUser } from "../../services/auth";
 import { StatusBar } from "expo-status-bar";
-
 import Logo from "../../components/ui/logo";
+import QuickEmergencyServices from "../../components/home/QuickEmergencyServices";
+import SOSButtonCard from "../../components/home/SOSButtonCard";
+import { getQuickEmergencyServices } from "../../services/emergencyServices";
+import { QuickEmergencyService } from "../../types";
 
 export default function HomeScreen() {
   const router = useRouter();
   const { nickname, accountType } = useAuthStore();
+  const [services, setServices] = useState<QuickEmergencyService[]>([]);
+  const [isLoadingServices, setIsLoadingServices] = useState(true);
 
   const handleLogout = async () => {
     await logoutUser();
     router.replace("/login");
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadServices = async () => {
+      try {
+        const data = await getQuickEmergencyServices();
+        if (isMounted) {
+          setServices(data);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingServices(false);
+        }
+      }
+    };
+
+    loadServices();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleServicePress = (service: QuickEmergencyService) => {
+    if (service.route) {
+      router.push(service.route as any);
+      return;
+    }
+
+    Alert.alert(
+      service.title,
+      `${service.description}\n\nHotline: ${service.hotline}`,
+      [{ text: "OK" }]
+    );
   };
 
   return (
@@ -100,17 +149,38 @@ export default function HomeScreen() {
           </Text>
         </TouchableOpacity>
 
-        <View style={{
-          backgroundColor: "#fef2f2",
-          borderRadius: 16,
-          padding: 16,
-          marginTop: 8,
-          alignItems: "center",
-        }}>
-          <Text style={{ color: "#9ca3af", fontSize: 13 }}>
-            🏗️ Home page is being designed
-          </Text>
-        </View>
+        {accountType !== "operator" && (
+          <>
+            <View style={{ marginTop: 8, marginBottom: 8 }}>
+              <SOSButtonCard />
+            </View>
+
+            {isLoadingServices ? (
+              <View
+                style={{
+                  backgroundColor: "#fff",
+                  borderRadius: 20,
+                  paddingVertical: 28,
+                  paddingHorizontal: 16,
+                  marginTop: 8,
+                  alignItems: "center",
+                  borderWidth: 1,
+                  borderColor: "#f3f4f6",
+                }}
+              >
+                <ActivityIndicator size="small" color="#f97316" />
+                <Text style={{ color: "#6b7280", fontSize: 13, marginTop: 10 }}>
+                  Loading quick emergency services...
+                </Text>
+              </View>
+            ) : (
+              <QuickEmergencyServices
+                services={services}
+                onServicePress={handleServicePress}
+              />
+            )}
+          </>
+        )}
       </View>
     </ScrollView>
   );

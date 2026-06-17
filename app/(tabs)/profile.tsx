@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import {
   View, Text, ScrollView, TouchableOpacity,
   Switch, ActivityIndicator, Alert, Modal,
-  TextInput, RefreshControl,
+  TextInput, RefreshControl, Platform,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useAuthStore } from "../../store/authStore";
@@ -15,16 +15,31 @@ import {
   TrackingAccuracy, VerificationStatus,
 } from "../../types";
 import Logo from "../../components/ui/logo";
-
+import LanguageSwitcher from "../../components/LanguageSwitcher";
+import { useTranslation } from "../../hooks/useTranslation";
+import { interpolate } from "../../i18n/reportHelpers";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { db } from "../../services/firebase";
+import {
+  collection, addDoc, deleteDoc,
+  doc, onSnapshot, serverTimestamp,
+} from "firebase/firestore";
 
 const BLOOD_GROUPS: BloodGroup[] = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 const BP_OPTIONS: BloodPressure[] = ["High", "Low", "Normal"];
 const TRACKING_OPTIONS: TrackingAccuracy[] = ["High Accuracy", "Balanced", "Battery Saving"];
 
+type EmergencyContact = {
+  id: string;
+  name: string;
+  phone: string;
+  relation: string;
+};
+
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, nickname, accountType } = useAuthStore();
+  const { t } = useTranslation();
 
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -34,6 +49,17 @@ export default function ProfileScreen() {
   // modals
   const [editModal, setEditModal] = useState(false);
   const [nidModal, setNidModal] = useState(false);
+
+  // ── Date picker state ──
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date(2000, 0, 1));
+
+  // ── Emergency contacts state ──
+  const [contactsExpanded, setContactsExpanded] = useState(false);
+  const [contacts, setContacts] = useState<EmergencyContact[]>([]);
+  const [addContactModal, setAddContactModal] = useState(false);
+  const [contactForm, setContactForm] = useState({ name: "", phone: "", relation: "" });
+  const [savingContact, setSavingContact] = useState(false);
 
   // edit form state
   const [editForm, setEditForm] = useState({
@@ -51,19 +77,15 @@ export default function ProfileScreen() {
     setRefreshing(false);
   };
 
+  // ── Profile listener ──
   useEffect(() => {
     if (!user?.uid) return;
-
     setLoading(true);
-
-    const { doc, onSnapshot } = require("firebase/firestore");
-
-    const unsubscribe = onSnapshot(
-      doc(db, "users", user.uid),
+    const { doc: firestoreDoc, onSnapshot: firestoreSnapshot } = require("firebase/firestore");
+    const unsubscribe = firestoreSnapshot(
+      firestoreDoc(db, "users", user.uid),
       (snap: any) => {
-        if (snap.exists()) {
-          setProfile(snap.data());
-        }
+        if (snap.exists()) setProfile(snap.data());
         setLoading(false);
         setRefreshing(false);
       },
@@ -73,8 +95,21 @@ export default function ProfileScreen() {
         setRefreshing(false);
       }
     );
-
     return () => unsubscribe();
+  }, [user?.uid]);
+
+  // ── Emergency contacts listener ──
+  useEffect(() => {
+    if (!user?.uid) return;
+    const contactsRef = collection(db, "users", user.uid, "importantContacts");
+    const unsub = onSnapshot(contactsRef, (snap) => {
+      const list: EmergencyContact[] = snap.docs.map((d) => ({
+        id: d.id,
+        ...(d.data() as Omit<EmergencyContact, "id">),
+      }));
+      setContacts(list);
+    });
+    return () => unsub();
   }, [user?.uid]);
 
   useEffect(() => { fetchProfile(); }, [user?.uid]);
@@ -84,7 +119,6 @@ export default function ProfileScreen() {
     router.replace("/login");
   };
 
-  // ── Toggle helpers ──
   const handleToggle = async (field: string, value: boolean) => {
     if (!user?.uid) return;
     setProfile((prev: any) => ({ ...prev, [field]: value }));
@@ -103,9 +137,10 @@ export default function ProfileScreen() {
 
   // ── Open edit modal ──
   const openEditModal = () => {
+    const dob = profile?.dateOfBirth ?? "";
     setEditForm({
       name: profile?.name ?? "",
-      dateOfBirth: profile?.dateOfBirth ?? "",
+      dateOfBirth: dob,
       phone: profile?.phone ?? "",
       bloodGroup: profile?.bloodGroup ?? "",
       bloodPressure: profile?.bloodPressure ?? "",
@@ -115,7 +150,31 @@ export default function ProfileScreen() {
       allergies: profile?.allergies ?? "",
       currentMedications: profile?.currentMedications ?? "",
     });
+    // parse existing date if available
+    if (dob) {
+      const parts = dob.split("/");
+      if (parts.length === 3) {
+        const parsed = new Date(
+          parseInt(parts[2]),
+          parseInt(parts[1]) - 1,
+          parseInt(parts[0])
+        );
+        if (!isNaN(parsed.getTime())) setSelectedDate(parsed);
+      }
+    }
     setEditModal(true);
+  };
+
+  // ── Date picker handler ──
+  const onDateChange = (_: any, date?: Date) => {
+    if (Platform.OS === "android") setShowDatePicker(false);
+    if (date) {
+      setSelectedDate(date);
+      const day = String(date.getDate()).padStart(2, "0");
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const year = date.getFullYear();
+      setEditForm((prev) => ({ ...prev, dateOfBirth: `${day}/${month}/${year}` }));
+    }
   };
 
   const handleSaveProfile = async () => {
@@ -125,41 +184,75 @@ export default function ProfileScreen() {
       await updateUserProfile(user.uid, editForm);
       setProfile((prev: any) => ({ ...prev, ...editForm }));
       setEditModal(false);
-      Alert.alert("✅ Saved", "Your profile has been updated.");
+      Alert.alert(`✅ ${t("common.save")}`, t("profile.saved"));
     } catch {
-      Alert.alert("Error", "Failed to save. Please try again.");
+      Alert.alert(t("common.error"), t("profile.saveFailed"));
     } finally {
       setSaving(false);
     }
   };
 
-  // ── NID verification ──
+  // ── Add emergency contact ──
+  const handleAddContact = async () => {
+    if (!contactForm.name.trim()) return Alert.alert(t("common.required"), t("profile.contactNameRequired"));
+    if (!contactForm.phone.trim()) return Alert.alert(t("common.required"), t("profile.contactPhoneRequired"));
+    if (contacts.length >= 3) return Alert.alert(t("common.required"), t("profile.contactLimit"));
+    if (!user?.uid) return;
+    setSavingContact(true);
+    try {
+      await addDoc(collection(db, "users", user.uid, "importantContacts"), {
+        name: contactForm.name.trim(),
+        phone: contactForm.phone.trim(),
+        relation: contactForm.relation.trim() || "Contact",
+        createdAt: serverTimestamp(),
+      });
+      setContactForm({ name: "", phone: "", relation: "" });
+      setAddContactModal(false);
+    } catch {
+      Alert.alert(t("common.error"), t("profile.contactAddFailed"));
+    } finally {
+      setSavingContact(false);
+    }
+  };
+
+  // ── Remove emergency contact ──
+  const handleRemoveContact = (contactId: string, contactName: string) => {
+    Alert.alert(
+      t("profile.removeContact"),
+      interpolate(t("profile.removeContactConfirm"), { name: contactName }),
+      [
+        { text: t("common.cancel"), style: "cancel" },
+        {
+          text: t("common.remove"),
+          style: "destructive",
+          onPress: async () => {
+            if (!user?.uid) return;
+            try {
+              await deleteDoc(doc(db, "users", user.uid, "importantContacts", contactId));
+            } catch {
+              Alert.alert(t("common.error"), t("profile.removeFailed"));
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleSubmitVerification = async () => {
-    if (!nidNumber.trim()) {
-      Alert.alert("Required", "Please enter your NID number.");
-      return;
-    }
-    if (nidNumber.trim().length < 10) {
-      Alert.alert("Invalid", "NID number must be at least 10 digits.");
-      return;
-    }
+    if (!nidNumber.trim()) { Alert.alert(t("common.required"), t("profile.nidRequired")); return; }
+    if (nidNumber.trim().length < 10) { Alert.alert(t("common.invalid"), t("profile.nidInvalid")); return; }
     if (!user?.uid) return;
     setNidSubmitting(true);
     try {
       await submitVerificationRequest(
-        user.uid,
-        profile?.name ?? "",
-        profile?.nickname ?? nickname ?? "",
-        nidNumber.trim()
+        user.uid, profile?.name ?? "",
+        profile?.nickname ?? nickname ?? "", nidNumber.trim()
       );
       setProfile((prev: any) => ({ ...prev, verificationStatus: "pending" }));
       setNidModal(false);
-      Alert.alert(
-        "✅ Request Submitted",
-        "Your verification request has been sent to operators. You will be notified once reviewed."
-      );
+      Alert.alert(`✅ ${t("common.submit")}`, t("profile.verificationSubmitted"));
     } catch (err: any) {
-      Alert.alert("Error", err.message ?? "Failed to submit. Please try again.");
+      Alert.alert(t("common.error"), err.message ?? t("profile.verificationSubmitFailed"));
     } finally {
       setNidSubmitting(false);
     }
@@ -174,7 +267,6 @@ export default function ProfileScreen() {
       rejected: { bg: "#fef2f2", border: "#fecaca", text: "#dc2626", icon: "❌", label: "Verification Rejected" },
       unverified: { bg: "#f9fafb", border: "#e5e7eb", text: "#6b7280", icon: "⚠️", label: "Not Verified" },
     }[verificationStatus];
-
     return (
       <View style={{
         backgroundColor: config.bg, borderWidth: 1, borderColor: config.border,
@@ -183,12 +275,10 @@ export default function ProfileScreen() {
       }}>
         <Text style={{ fontSize: 20 }}>{config.icon}</Text>
         <View style={{ flex: 1 }}>
-          <Text style={{ color: config.text, fontWeight: "700", fontSize: 14 }}>
-            {config.label}
-          </Text>
+          <Text style={{ color: config.text, fontWeight: "700", fontSize: 14 }}>{config.label}</Text>
           <Text style={{ color: config.text, fontSize: 12, marginTop: 2, opacity: 0.8 }}>
-            {verificationStatus === "unverified" && "Verify your NID to access all features and submit reports."}
-            {verificationStatus === "pending" && "Your request is under review by an operator."}
+            {verificationStatus === "unverified" && "Verify your NID to access all features."}
+            {verificationStatus === "pending" && "Your request is under review."}
             {verificationStatus === "verified" && "Your identity has been verified successfully."}
             {verificationStatus === "rejected" && "Your verification was rejected. Please resubmit."}
           </Text>
@@ -196,14 +286,9 @@ export default function ProfileScreen() {
         {(verificationStatus === "unverified" || verificationStatus === "rejected") && (
           <TouchableOpacity
             onPress={() => setNidModal(true)}
-            style={{
-              backgroundColor: "#f97316", borderRadius: 8,
-              paddingHorizontal: 12, paddingVertical: 6,
-            }}
+            style={{ backgroundColor: "#f97316", borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 }}
           >
-            <Text style={{ color: "#fff", fontSize: 12, fontWeight: "700" }}>
-              Verify
-            </Text>
+            <Text style={{ color: "#fff", fontSize: 12, fontWeight: "700" }}>Verify</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -214,7 +299,7 @@ export default function ProfileScreen() {
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#f9fafb" }}>
         <ActivityIndicator size="large" color="#f97316" />
-        <Text style={{ color: "#9ca3af", marginTop: 12 }}>Loading profile...</Text>
+        <Text style={{ color: "#9ca3af", marginTop: 12 }}>{t("profile.loading")}</Text>
       </View>
     );
   }
@@ -224,45 +309,27 @@ export default function ProfileScreen() {
 
       {/* ── Header ── */}
       <View style={{
-        backgroundColor: "#f97316",
-        paddingTop: 56,
-        paddingBottom: 24,
-        paddingHorizontal: 20,
+        backgroundColor: "#c4451a", paddingTop: 56,
+        paddingBottom: 24, paddingHorizontal: 20,
       }}>
-        {/* Top row — logo + logout */}
-        <View style={{
-          flexDirection: "row",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 16,
-        }}>
-          {/* Logo — clickable → home */}
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <Logo onPress={() => router.push("/(tabs)")} />
-
-          {/* Logout button */}
           <TouchableOpacity
             onPress={handleLogout}
             style={{
-              backgroundColor: "rgba(255,255,255,0.2)",
-              paddingHorizontal: 14,
-              paddingVertical: 7,
-              borderRadius: 20,
-              borderWidth: 1,
-              borderColor: "rgba(255,255,255,0.35)",
+              backgroundColor: "rgba(255,255,255,0.2)", paddingHorizontal: 14,
+              paddingVertical: 7, borderRadius: 20,
+              borderWidth: 1, borderColor: "rgba(255,255,255,0.35)",
             }}
           >
-            <Text style={{ color: "#fff", fontSize: 13, fontWeight: "600" }}>
-              Logout
-            </Text>
+            <Text style={{ color: "#fff", fontSize: 13, fontWeight: "600" }}>{t("common.logout")}</Text>
           </TouchableOpacity>
         </View>
-
-        {/* Dashboard title */}
         <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 13, fontWeight: "500" }}>
-          Welcome back, {nickname ?? "User"}
+          {interpolate(t("profile.welcomeBack"), { name: nickname ?? t("messages.user") })}
         </Text>
         <Text style={{ color: "#fff", fontSize: 24, fontWeight: "700", marginTop: 2 }}>
-          Profile Settings
+          {t("profile.title")}
         </Text>
       </View>
 
@@ -278,14 +345,13 @@ export default function ProfileScreen() {
           />
         }
       >
-
-        {/* Verification badge */}
+        <LanguageSwitcher />
         <VerificationBadge />
 
         {/* ── Personal Information ── */}
         <View style={cardStyle}>
           <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-            <Text style={sectionTitle}>👤 Personal Information</Text>
+            <Text style={sectionTitle}>👤 {t("profile.personalInfo")}</Text>
             <TouchableOpacity
               onPress={openEditModal}
               style={{
@@ -294,11 +360,9 @@ export default function ProfileScreen() {
                 borderWidth: 1, borderColor: "#fed7aa",
               }}
             >
-              <Text style={{ color: "#f97316", fontSize: 13, fontWeight: "700" }}>✏️ Edit</Text>
+              <Text style={{ color: "#f97316", fontSize: 13, fontWeight: "700" }}>✏️ {t("profile.edit")}</Text>
             </TouchableOpacity>
           </View>
-
-          {/* Avatar */}
           <View style={{ alignItems: "center", marginBottom: 20 }}>
             <View style={{
               width: 80, height: 80, borderRadius: 40,
@@ -308,17 +372,11 @@ export default function ProfileScreen() {
               <Text style={{ fontSize: 36 }}>👤</Text>
             </View>
             {verificationStatus === "verified" && (
-              <View style={{
-                marginTop: 6, backgroundColor: "#f0fdf4",
-                borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3,
-              }}>
-                <Text style={{ color: "#15803d", fontSize: 11, fontWeight: "700" }}>
-                  ✅ Verified
-                </Text>
+              <View style={{ marginTop: 6, backgroundColor: "#f0fdf4", borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3 }}>
+                <Text style={{ color: "#15803d", fontSize: 11, fontWeight: "700" }}>✅ {t("profile.verified")}</Text>
               </View>
             )}
           </View>
-
           <InfoRow label="Full Name" value={profile?.name} />
           <InfoRow label="Nickname" value={profile?.nickname} />
           <InfoRow label="Date of Birth" value={profile?.dateOfBirth} />
@@ -328,7 +386,7 @@ export default function ProfileScreen() {
 
         {/* ── Health Information ── */}
         <View style={cardStyle}>
-          <Text style={sectionTitle}>🩺 Health Information</Text>
+          <Text style={sectionTitle}>🩺 {t("profile.healthInfo")}</Text>
           <View style={{ marginTop: 12 }}>
             <InfoRow label="Blood Group" value={profile?.bloodGroup || "—"} />
             <InfoRow label="Blood Pressure" value={profile?.bloodPressure || "—"} />
@@ -340,90 +398,161 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* ── Emergency Contacts ── */}
+        {/* ══ Emergency Contacts ══ */}
         <View style={cardStyle}>
-          <Text style={sectionTitle}>📞 Emergency Contacts</Text>
+          {/* Header row — toggle collapse */}
           <TouchableOpacity
-            onPress={() => router.push("/(feat)/women-safety" as any)}
-            style={{
-              marginTop: 12, backgroundColor: "#fff7ed",
-              borderRadius: 12, padding: 14,
-              borderWidth: 1, borderColor: "#fed7aa",
-              flexDirection: "row", alignItems: "center", gap: 10,
-            }}
+            onPress={() => setContactsExpanded((prev) => !prev)}
+            style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}
+            activeOpacity={0.7}
           >
-            <Text style={{ fontSize: 20 }}>👥</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: "#374151", fontWeight: "700", fontSize: 13 }}>
-                Manage Emergency Contacts
-              </Text>
-              <Text style={{ color: "#9ca3af", fontSize: 12, marginTop: 2 }}>
-                Add up to 3 contacts for panic alerts
-              </Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <Text style={sectionTitle}>📞 {t("profile.emergencyContacts")}</Text>
+              {contacts.length > 0 && (
+                <View style={{
+                  backgroundColor: "#f97316", borderRadius: 10,
+                  paddingHorizontal: 7, paddingVertical: 2,
+                }}>
+                  <Text style={{ color: "#fff", fontSize: 11, fontWeight: "700" }}>
+                    {contacts.length}
+                  </Text>
+                </View>
+              )}
             </View>
-            <Text style={{ color: "#f97316", fontSize: 18 }}>→</Text>
+            <Text style={{ fontSize: 18, color: "#9ca3af" }}>
+              {contactsExpanded ? "▲" : "▼"}
+            </Text>
           </TouchableOpacity>
+
+          {/* Collapsed preview */}
+          {!contactsExpanded && (
+            <Text style={{ color: "#9ca3af", fontSize: 12, marginTop: 6 }}>
+              {contacts.length === 0
+                ? "No emergency contacts added yet"
+                : `${contacts.length} contact${contacts.length > 1 ? "s" : ""} saved`}
+            </Text>
+          )}
+
+          {/* Expanded content */}
+          {contactsExpanded && (
+            <View style={{ marginTop: 14 }}>
+              {contacts.length === 0 ? (
+                <View style={{
+                  backgroundColor: "#f9fafb", borderRadius: 12, padding: 20,
+                  alignItems: "center", borderWidth: 1, borderColor: "#f3f4f6",
+                  marginBottom: 12,
+                }}>
+                  <Text style={{ fontSize: 32, marginBottom: 8 }}>👥</Text>
+                  <Text style={{ color: "#6b7280", fontSize: 13, textAlign: "center" }}>
+                    No emergency contacts yet.{"\n"}Add up to 3 contacts.
+                  </Text>
+                </View>
+              ) : (
+                contacts.map((contact, index) => (
+                  <View
+                    key={contact.id}
+                    style={{
+                      backgroundColor: "#fff7ed", borderRadius: 12, padding: 14,
+                      marginBottom: 10, borderWidth: 1, borderColor: "#fed7aa",
+                      flexDirection: "row", alignItems: "center", gap: 12,
+                    }}
+                  >
+                    {/* Avatar */}
+                    <View style={{
+                      width: 42, height: 42, borderRadius: 21,
+                      backgroundColor: "#f97316", alignItems: "center", justifyContent: "center",
+                    }}>
+                      <Text style={{ color: "#fff", fontWeight: "800", fontSize: 16 }}>
+                        {contact.name.charAt(0).toUpperCase()}
+                      </Text>
+                    </View>
+
+                    {/* Info */}
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: "#1f2937", fontWeight: "700", fontSize: 14 }}>
+                        {contact.name}
+                      </Text>
+                      <Text style={{ color: "#6b7280", fontSize: 12, marginTop: 2 }}>
+                        {contact.phone}
+                      </Text>
+                      <View style={{
+                        backgroundColor: "#fff", borderRadius: 8, paddingHorizontal: 8,
+                        paddingVertical: 2, alignSelf: "flex-start", marginTop: 4,
+                        borderWidth: 1, borderColor: "#fed7aa",
+                      }}>
+                        <Text style={{ color: "#f97316", fontSize: 11, fontWeight: "600" }}>
+                          {contact.relation}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Remove button */}
+                    <TouchableOpacity
+                      onPress={() => handleRemoveContact(contact.id, contact.name)}
+                      style={{
+                        width: 32, height: 32, borderRadius: 16,
+                        backgroundColor: "#fef2f2", alignItems: "center", justifyContent: "center",
+                        borderWidth: 1, borderColor: "#fecaca",
+                      }}
+                    >
+                      <Text style={{ color: "#dc2626", fontSize: 16, fontWeight: "700" }}>✕</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))
+              )}
+
+              {/* Add contact button */}
+              {contacts.length < 3 && (
+                <TouchableOpacity
+                  onPress={() => setAddContactModal(true)}
+                  style={{
+                    backgroundColor: "#f97316", borderRadius: 12,
+                    paddingVertical: 12, alignItems: "center",
+                    flexDirection: "row", justifyContent: "center", gap: 8,
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Text style={{ color: "#fff", fontSize: 18, fontWeight: "700" }}>+</Text>
+                  <Text style={{ color: "#fff", fontSize: 14, fontWeight: "700" }}>
+                    Add Emergency Contact
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              {contacts.length >= 3 && (
+                <View style={{
+                  backgroundColor: "#fff7ed", borderRadius: 10, padding: 10,
+                  borderWidth: 1, borderColor: "#fed7aa", alignItems: "center",
+                }}>
+                  <Text style={{ color: "#c2410c", fontSize: 12, fontWeight: "600" }}>
+                    Maximum 3 contacts reached
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
         </View>
 
         {/* ── Privacy & Security ── */}
         <View style={cardStyle}>
-          <Text style={sectionTitle}>🔒 Privacy & Security</Text>
+          <Text style={sectionTitle}>🔒 {t("profile.privacySecurity")}</Text>
           <View style={{ marginTop: 12 }}>
-            <ToggleRow
-              label="Show Health Information"
-              desc="Display your health profile to emergency responders"
-              value={profile?.showHealthInfo ?? true}
-              onToggle={(v) => handleToggle("showHealthInfo", v)}
-            />
-            <ToggleRow
-              label="Show Contact Information"
-              desc="Make your contact details visible to verified services"
-              value={profile?.showContactInfo ?? true}
-              onToggle={(v) => handleToggle("showContactInfo", v)}
-            />
-            <ToggleRow
-              label="Data Sharing"
-              desc="Share anonymous data to improve emergency services"
-              value={profile?.dataSharing ?? false}
-              onToggle={(v) => handleToggle("dataSharing", v)}
-            />
-            <ToggleRow
-              label="Two-Factor Authentication"
-              desc="Add an extra layer of security to your account"
-              value={profile?.twoFactorAuth ?? false}
-              onToggle={(v) => handleToggle("twoFactorAuth", v)}
-            />
-            <ToggleRow
-              label="Emergency Access"
-              desc="Allow emergency services to access your data during emergencies"
-              value={profile?.emergencyAccess ?? true}
-              onToggle={(v) => handleToggle("emergencyAccess", v)}
-              last
-            />
+            <ToggleRow label="Show Health Information" desc="Display your health profile to emergency responders" value={profile?.showHealthInfo ?? true} onToggle={(v) => handleToggle("showHealthInfo", v)} />
+            <ToggleRow label="Show Contact Information" desc="Make your contact details visible to verified services" value={profile?.showContactInfo ?? true} onToggle={(v) => handleToggle("showContactInfo", v)} />
+            <ToggleRow label="Data Sharing" desc="Share anonymous data to improve emergency services" value={profile?.dataSharing ?? false} onToggle={(v) => handleToggle("dataSharing", v)} />
+            <ToggleRow label="Two-Factor Authentication" desc="Add an extra layer of security to your account" value={profile?.twoFactorAuth ?? false} onToggle={(v) => handleToggle("twoFactorAuth", v)} />
+            <ToggleRow label="Emergency Access" desc="Allow emergency services to access your data during emergencies" value={profile?.emergencyAccess ?? true} onToggle={(v) => handleToggle("emergencyAccess", v)} last />
           </View>
           <SaveBadge />
         </View>
 
         {/* ── Location & Tracking ── */}
         <View style={cardStyle}>
-          <Text style={sectionTitle}>📍 Location & Tracking</Text>
+          <Text style={sectionTitle}>📍 {t("profile.locationTracking")}</Text>
           <View style={{ marginTop: 12 }}>
-            <ToggleRow
-              label="Share Real-time Location"
-              desc="Share your live location with emergency services during active requests"
-              value={profile?.shareRealtimeLocation ?? true}
-              onToggle={(v) => handleToggle("shareRealtimeLocation", v)}
-            />
-            <ToggleRow
-              label="Location History"
-              desc="Save your location history for better emergency response"
-              value={profile?.locationHistory ?? true}
-              onToggle={(v) => handleToggle("locationHistory", v)}
-              last
-            />
+            <ToggleRow label="Share Real-time Location" desc="Share your live location with emergency services" value={profile?.shareRealtimeLocation ?? true} onToggle={(v) => handleToggle("shareRealtimeLocation", v)} />
+            <ToggleRow label="Location History" desc="Save your location history for better emergency response" value={profile?.locationHistory ?? true} onToggle={(v) => handleToggle("locationHistory", v)} last />
           </View>
-
-          {/* Tracking accuracy */}
           <View style={{ marginTop: 16 }}>
             <Text style={{ color: "#374151", fontWeight: "700", fontSize: 14, marginBottom: 12 }}>
               Tracking Accuracy
@@ -432,14 +561,10 @@ export default function ProfileScreen() {
               <TouchableOpacity
                 key={opt}
                 onPress={() => handleTrackingChange(opt)}
-                style={{
-                  flexDirection: "row", alignItems: "flex-start",
-                  gap: 12, marginBottom: 12,
-                }}
+                style={{ flexDirection: "row", alignItems: "flex-start", gap: 12, marginBottom: 12 }}
               >
                 <View style={{
-                  width: 20, height: 20, borderRadius: 10,
-                  borderWidth: 2, marginTop: 1,
+                  width: 20, height: 20, borderRadius: 10, borderWidth: 2, marginTop: 1,
                   borderColor: profile?.trackingAccuracy === opt ? "#f97316" : "#d1d5db",
                   alignItems: "center", justifyContent: "center",
                 }}>
@@ -448,10 +573,7 @@ export default function ProfileScreen() {
                   )}
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{
-                    fontWeight: "600", fontSize: 14,
-                    color: profile?.trackingAccuracy === opt ? "#f97316" : "#374151",
-                  }}>
+                  <Text style={{ fontWeight: "600", fontSize: 14, color: profile?.trackingAccuracy === opt ? "#f97316" : "#374151" }}>
                     {opt}
                   </Text>
                   <Text style={{ color: "#9ca3af", fontSize: 12, marginTop: 2 }}>
@@ -467,18 +589,12 @@ export default function ProfileScreen() {
         </View>
       </ScrollView>
 
-      {/* ── Edit Profile Modal ── */}
-      <Modal
-        visible={editModal}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setEditModal(false)}
-      >
+      {/* ══ Edit Profile Modal ══ */}
+      <Modal visible={editModal} animationType="slide" transparent onRequestClose={() => setEditModal(false)}>
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }}>
           <View style={{
             backgroundColor: "#fff", borderTopLeftRadius: 24,
-            borderTopRightRadius: 24, padding: 24, paddingBottom: 40,
-            maxHeight: "90%",
+            borderTopRightRadius: 24, padding: 24, paddingBottom: 40, maxHeight: "90%",
           }}>
             <Text style={{ fontSize: 18, fontWeight: "700", color: "#1f2937", marginBottom: 20 }}>
               ✏️ Edit Profile
@@ -489,16 +605,72 @@ export default function ProfileScreen() {
 
               <EditField label="Full Name" value={editForm.name}
                 onChange={(v) => setEditForm({ ...editForm, name: v })} />
-              <EditField label="Date of Birth" value={editForm.dateOfBirth}
-                onChange={(v) => setEditForm({ ...editForm, dateOfBirth: v })}
-                placeholder="DD/MM/YYYY" />
+
+              {/* ── Date of Birth with Calendar ── */}
+              <View style={{ marginBottom: 14 }}>
+                <Text style={modalLabel}>Date of Birth</Text>
+                <TouchableOpacity
+                  onPress={() => setShowDatePicker(true)}
+                  style={{
+                    backgroundColor: "#f9fafb", borderWidth: 1, borderColor: "#e5e7eb",
+                    borderRadius: 10, paddingHorizontal: 14, paddingVertical: 13,
+                    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+                  }}
+                >
+                  <Text style={{
+                    fontSize: 14,
+                    color: editForm.dateOfBirth ? "#1f2937" : "#9ca3af",
+                  }}>
+                    {editForm.dateOfBirth || "Select date of birth"}
+                  </Text>
+                  <Text style={{ fontSize: 18 }}>📅</Text>
+                </TouchableOpacity>
+
+                {/* iOS — show inline picker */}
+                {showDatePicker && Platform.OS === "ios" && (
+                  <View style={{
+                    backgroundColor: "#fff", borderRadius: 12, marginTop: 8,
+                    borderWidth: 1, borderColor: "#e5e7eb", overflow: "hidden",
+                  }}>
+                    <DateTimePicker
+                      value={selectedDate}
+                      mode="date"
+                      display="spinner"
+                      onChange={onDateChange}
+                      maximumDate={new Date()}
+                      minimumDate={new Date(1940, 0, 1)}
+                    />
+                    <TouchableOpacity
+                      onPress={() => setShowDatePicker(false)}
+                      style={{
+                        backgroundColor: "#f97316", margin: 12,
+                        borderRadius: 10, paddingVertical: 10, alignItems: "center",
+                      }}
+                    >
+                      <Text style={{ color: "#fff", fontWeight: "700" }}>Confirm Date</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {/* Android — native dialog */}
+                {showDatePicker && Platform.OS === "android" && (
+                  <DateTimePicker
+                    value={selectedDate}
+                    mode="date"
+                    display="calendar"
+                    onChange={onDateChange}
+                    maximumDate={new Date()}
+                    minimumDate={new Date(1940, 0, 1)}
+                  />
+                )}
+              </View>
+
               <EditField label="Phone Number" value={editForm.phone}
                 onChange={(v) => setEditForm({ ...editForm, phone: v })}
                 keyboardType="phone-pad" />
 
               <Text style={[modalSectionTitle, { marginTop: 16 }]}>Health Information</Text>
 
-              {/* Blood Group */}
               <Text style={modalLabel}>Blood Group</Text>
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
                 {BLOOD_GROUPS.map((bg) => (
@@ -506,23 +678,18 @@ export default function ProfileScreen() {
                     key={bg}
                     onPress={() => setEditForm({ ...editForm, bloodGroup: bg })}
                     style={{
-                      paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
-                      borderWidth: 1,
+                      paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1,
                       backgroundColor: editForm.bloodGroup === bg ? "#fff7ed" : "#f9fafb",
                       borderColor: editForm.bloodGroup === bg ? "#f97316" : "#e5e7eb",
                     }}
                   >
-                    <Text style={{
-                      fontWeight: "700", fontSize: 13,
-                      color: editForm.bloodGroup === bg ? "#f97316" : "#6b7280",
-                    }}>
+                    <Text style={{ fontWeight: "700", fontSize: 13, color: editForm.bloodGroup === bg ? "#f97316" : "#6b7280" }}>
                       {bg}
                     </Text>
                   </TouchableOpacity>
                 ))}
               </View>
 
-              {/* Blood Pressure */}
               <Text style={modalLabel}>Blood Pressure</Text>
               <View style={{ flexDirection: "row", gap: 8, marginBottom: 14 }}>
                 {BP_OPTIONS.map((bp) => (
@@ -536,10 +703,7 @@ export default function ProfileScreen() {
                       borderColor: editForm.bloodPressure === bp ? "#f97316" : "#e5e7eb",
                     }}
                   >
-                    <Text style={{
-                      fontWeight: "700", fontSize: 13,
-                      color: editForm.bloodPressure === bp ? "#f97316" : "#6b7280",
-                    }}>
+                    <Text style={{ fontWeight: "700", fontSize: 13, color: editForm.bloodPressure === bp ? "#f97316" : "#6b7280" }}>
                       {bp}
                     </Text>
                   </TouchableOpacity>
@@ -572,20 +736,14 @@ export default function ProfileScreen() {
               <View style={{ flexDirection: "row", gap: 12, marginTop: 8 }}>
                 <TouchableOpacity
                   onPress={() => setEditModal(false)}
-                  style={{
-                    flex: 1, backgroundColor: "#f3f4f6", borderRadius: 12,
-                    paddingVertical: 14, alignItems: "center",
-                  }}
+                  style={{ flex: 1, backgroundColor: "#f3f4f6", borderRadius: 12, paddingVertical: 14, alignItems: "center" }}
                 >
                   <Text style={{ color: "#374151", fontWeight: "700" }}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={handleSaveProfile}
                   disabled={saving}
-                  style={{
-                    flex: 1, backgroundColor: "#f97316", borderRadius: 12,
-                    paddingVertical: 14, alignItems: "center",
-                  }}
+                  style={{ flex: 1, backgroundColor: "#f97316", borderRadius: 12, paddingVertical: 14, alignItems: "center" }}
                 >
                   {saving ? <ActivityIndicator color="#fff" /> : (
                     <Text style={{ color: "#fff", fontWeight: "700" }}>Save Changes</Text>
@@ -597,13 +755,68 @@ export default function ProfileScreen() {
         </View>
       </Modal>
 
+      {/* ══ Add Emergency Contact Modal ══ */}
+      <Modal visible={addContactModal} animationType="slide" transparent onRequestClose={() => setAddContactModal(false)}>
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }}>
+          <View style={{
+            backgroundColor: "#fff", borderTopLeftRadius: 24,
+            borderTopRightRadius: 24, padding: 24, paddingBottom: 40,
+          }}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+              <Text style={{ fontSize: 18, fontWeight: "700", color: "#1f2937" }}>
+                ➕ Add Emergency Contact
+              </Text>
+              <TouchableOpacity
+                onPress={() => setAddContactModal(false)}
+                style={{ backgroundColor: "#f3f4f6", borderRadius: 16, width: 32, height: 32, alignItems: "center", justifyContent: "center" }}
+              >
+                <Text style={{ fontWeight: "700", color: "#6b7280" }}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <EditField
+              label="Full Name *"
+              value={contactForm.name}
+              onChange={(v) => setContactForm({ ...contactForm, name: v })}
+              placeholder="e.g. John Doe"
+            />
+            <EditField
+              label="Phone Number *"
+              value={contactForm.phone}
+              onChange={(v) => setContactForm({ ...contactForm, phone: v })}
+              placeholder="e.g. 01712345678"
+              keyboardType="phone-pad"
+            />
+            <EditField
+              label="Relation"
+              value={contactForm.relation}
+              onChange={(v) => setContactForm({ ...contactForm, relation: v })}
+              placeholder="e.g. Father, Sister, Friend"
+            />
+
+            <View style={{ flexDirection: "row", gap: 12, marginTop: 8 }}>
+              <TouchableOpacity
+                onPress={() => { setAddContactModal(false); setContactForm({ name: "", phone: "", relation: "" }); }}
+                style={{ flex: 1, backgroundColor: "#f3f4f6", borderRadius: 12, paddingVertical: 14, alignItems: "center" }}
+              >
+                <Text style={{ color: "#374151", fontWeight: "700" }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleAddContact}
+                disabled={savingContact}
+                style={{ flex: 1, backgroundColor: "#f97316", borderRadius: 12, paddingVertical: 14, alignItems: "center" }}
+              >
+                {savingContact ? <ActivityIndicator color="#fff" /> : (
+                  <Text style={{ color: "#fff", fontWeight: "700" }}>Add Contact</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* ── NID Verification Modal ── */}
-      <Modal
-        visible={nidModal}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setNidModal(false)}
-      >
+      <Modal visible={nidModal} animationType="slide" transparent onRequestClose={() => setNidModal(false)}>
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }}>
           <View style={{
             backgroundColor: "#fff", borderTopLeftRadius: 24,
@@ -614,16 +827,13 @@ export default function ProfileScreen() {
             </Text>
             <Text style={{ color: "#6b7280", fontSize: 13, marginBottom: 20, lineHeight: 20 }}>
               Enter your National ID number. An operator will review and verify your account.
-              Your NID is stored securely and never shared publicly.
             </Text>
-
             <Text style={modalLabel}>NID Number <Text style={{ color: "#dc2626" }}>*</Text></Text>
             <TextInput
               style={{
                 backgroundColor: "#f9fafb", borderWidth: 1, borderColor: "#e5e7eb",
                 borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14,
-                fontSize: 15, color: "#1f2937", marginBottom: 20,
-                letterSpacing: 1,
+                fontSize: 15, color: "#1f2937", marginBottom: 20, letterSpacing: 1,
               }}
               placeholder="Enter your 10-17 digit NID number"
               placeholderTextColor="#9ca3af"
@@ -632,35 +842,25 @@ export default function ProfileScreen() {
               onChangeText={setNidNumber}
               maxLength={17}
             />
-
             <View style={{
-              backgroundColor: "#fff7ed", borderRadius: 12,
-              padding: 12, marginBottom: 20,
+              backgroundColor: "#fff7ed", borderRadius: 12, padding: 12, marginBottom: 20,
               borderWidth: 1, borderColor: "#fed7aa",
             }}>
               <Text style={{ color: "#92400e", fontSize: 12, lineHeight: 18 }}>
-                ⚠️ Make sure your full name matches your NID exactly. Operators will cross-check
-                this information before approving.
+                ⚠️ Make sure your full name matches your NID exactly.
               </Text>
             </View>
-
             <View style={{ flexDirection: "row", gap: 12 }}>
               <TouchableOpacity
                 onPress={() => setNidModal(false)}
-                style={{
-                  flex: 1, backgroundColor: "#f3f4f6", borderRadius: 12,
-                  paddingVertical: 14, alignItems: "center",
-                }}
+                style={{ flex: 1, backgroundColor: "#f3f4f6", borderRadius: 12, paddingVertical: 14, alignItems: "center" }}
               >
                 <Text style={{ color: "#374151", fontWeight: "700" }}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={handleSubmitVerification}
                 disabled={nidSubmitting}
-                style={{
-                  flex: 1, backgroundColor: "#f97316", borderRadius: 12,
-                  paddingVertical: 14, alignItems: "center",
-                }}
+                style={{ flex: 1, backgroundColor: "#f97316", borderRadius: 12, paddingVertical: 14, alignItems: "center" }}
               >
                 {nidSubmitting ? <ActivityIndicator color="#fff" /> : (
                   <Text style={{ color: "#fff", fontWeight: "700" }}>Submit Request</Text>
@@ -670,19 +870,16 @@ export default function ProfileScreen() {
           </View>
         </View>
       </Modal>
+
     </View>
   );
 }
 
 // ── Reusable components ──
-
-const InfoRow = ({
-  label, value, last = false,
-}: { label: string; value?: string; last?: boolean }) => (
+const InfoRow = ({ label, value, last = false }: { label: string; value?: string; last?: boolean }) => (
   <View style={{
-    flexDirection: "row", justifyContent: "space-between",
-    alignItems: "flex-start", paddingVertical: 10,
-    borderBottomWidth: last ? 0 : 1, borderBottomColor: "#f3f4f6",
+    flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start",
+    paddingVertical: 10, borderBottomWidth: last ? 0 : 1, borderBottomColor: "#f3f4f6",
   }}>
     <Text style={{ color: "#9ca3af", fontSize: 13, flex: 1 }}>{label}</Text>
     <Text style={{ color: "#1f2937", fontSize: 13, fontWeight: "600", flex: 2, textAlign: "right" }}>
@@ -691,59 +888,41 @@ const InfoRow = ({
   </View>
 );
 
-const ToggleRow = ({
-  label, desc, value, onToggle, last = false,
-}: {
-  label: string; desc: string; value: boolean;
-  onToggle: (v: boolean) => void; last?: boolean;
+const ToggleRow = ({ label, desc, value, onToggle, last = false }: {
+  label: string; desc: string; value: boolean; onToggle: (v: boolean) => void; last?: boolean;
 }) => (
   <View style={{
-    flexDirection: "row", alignItems: "center",
-    paddingVertical: 14,
-    borderBottomWidth: last ? 0 : 1, borderBottomColor: "#f3f4f6",
-    gap: 12,
+    flexDirection: "row", alignItems: "center", paddingVertical: 14,
+    borderBottomWidth: last ? 0 : 1, borderBottomColor: "#f3f4f6", gap: 12,
   }}>
     <View style={{ flex: 1 }}>
       <Text style={{ color: "#1f2937", fontWeight: "600", fontSize: 14 }}>{label}</Text>
       <Text style={{ color: "#9ca3af", fontSize: 12, marginTop: 2, lineHeight: 16 }}>{desc}</Text>
     </View>
-    <Switch
-      value={value}
-      onValueChange={onToggle}
+    <Switch value={value} onValueChange={onToggle}
       trackColor={{ false: "#e5e7eb", true: "#fed7aa" }}
-      thumbColor={value ? "#f97316" : "#fff"}
-    />
+      thumbColor={value ? "#f97316" : "#fff"} />
   </View>
 );
 
 const SaveBadge = () => (
-  <View style={{
-    marginTop: 12, backgroundColor: "#f0fdf4", borderRadius: 8,
-    padding: 8, alignItems: "center",
-  }}>
-    <Text style={{ color: "#15803d", fontSize: 11, fontWeight: "600" }}>
-      ✓ Changes save automatically
-    </Text>
+  <View style={{ marginTop: 12, backgroundColor: "#f0fdf4", borderRadius: 8, padding: 8, alignItems: "center" }}>
+    <Text style={{ color: "#15803d", fontSize: 11, fontWeight: "600" }}>✓ Changes save automatically</Text>
   </View>
 );
 
-const EditField = ({
-  label, value, onChange, placeholder, keyboardType, multiline,
-}: {
+const EditField = ({ label, value, onChange, placeholder, keyboardType, multiline }: {
   label: string; value: string; onChange: (v: string) => void;
   placeholder?: string; keyboardType?: any; multiline?: boolean;
 }) => (
   <View style={{ marginBottom: 14 }}>
     <Text style={modalLabel}>{label}</Text>
     <TextInput
-      style={[
-        {
-          backgroundColor: "#f9fafb", borderWidth: 1, borderColor: "#e5e7eb",
-          borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11,
-          fontSize: 14, color: "#1f2937",
-        },
-        multiline && { minHeight: 80, textAlignVertical: "top" },
-      ]}
+      style={[{
+        backgroundColor: "#f9fafb", borderWidth: 1, borderColor: "#e5e7eb",
+        borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11,
+        fontSize: 14, color: "#1f2937",
+      }, multiline && { minHeight: 80, textAlignVertical: "top" }]}
       placeholder={placeholder ?? `Enter ${label.toLowerCase()}`}
       placeholderTextColor="#9ca3af"
       value={value}
@@ -754,12 +933,11 @@ const EditField = ({
   </View>
 );
 
-// ── Styles ──
 const cardStyle = {
-  backgroundColor: "#fff", borderRadius: 16, padding: 16,
-  marginBottom: 12, borderWidth: 1, borderColor: "#f3f4f6",
-  shadowColor: "#000", shadowOpacity: 0.04,
-  shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 1,
+  backgroundColor: "#fff", borderRadius: 16, padding: 16, marginBottom: 12,
+  borderWidth: 1, borderColor: "#f3f4f6",
+  shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 4,
+  shadowOffset: { width: 0, height: 2 }, elevation: 1,
 };
 const sectionTitle = { fontSize: 15, fontWeight: "700" as const, color: "#1f2937" };
 const modalSectionTitle = { fontSize: 14, fontWeight: "700" as const, color: "#374151", marginBottom: 12 };

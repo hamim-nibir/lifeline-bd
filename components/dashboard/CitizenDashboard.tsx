@@ -15,25 +15,34 @@ const CARD_SIZE = (width - 48 - 1) / 3;
 
 type Feature = {
   icon: string;
-  name: string;
-  desc: string;
+  nameKey: string;
+  descKey: string;
   route: string;
+  params?: Record<string, string>;
   color: string;
 };
 
 const CITIZEN_FEATURES: Feature[] = [
   {
     icon: "🔔",
-    name: "Safety Panic Mode",
-    desc: "Urgent response",
+    nameKey: "citizenDashboard.features.panic.name",
+    descKey: "citizenDashboard.features.panic.desc",
     route: "/(feat)/women-safety",
     color: "#fff7ed",
   },
   {
     icon: "⚠️",
-    name: "Accident",
-    desc: "Urgent report",
-    route: "/(feat)/accident-report",
+    nameKey: "citizenDashboard.features.accident.name",
+    descKey: "citizenDashboard.features.accident.desc",
+    route: "/(feat)/citizen-report-form",
+    params: { category: "accident" },
+    color: "#f0fdf4",
+  },
+  {
+    icon: "🔍",
+    name: "Find Donor",
+    desc: "Search nearby",
+    route: "/find-donor",
     color: "#f0fdf4",
   },
   {
@@ -85,6 +94,13 @@ const CITIZEN_FEATURES: Feature[] = [
     route: "/settings",
     color: "#f8fafc",
   },
+  {
+    icon: "📚",
+    name: "Training",
+    desc: "First aid & skills",
+    route: "/(feat)/training-resources",
+    color: "#eef2ff",
+  },
 ];
 
 export default function CitizenDashboard() {
@@ -96,8 +112,12 @@ export default function CitizenDashboard() {
     router.replace("/login");
   };
 
-  const handleFeaturePress = (route: string) => {
-    router.push(route as any);
+  const handleFeaturePress = (feature: (typeof features)[number]) => {
+    if (feature.params) {
+      router.push({ pathname: feature.route, params: feature.params } as any);
+    } else {
+      router.push(feature.route as any);
+    }
   };
 
   return (
@@ -153,7 +173,6 @@ export default function CitizenDashboard() {
         contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Section label */}
         <Text style={{
           color: "#374151",
           fontSize: 16,
@@ -161,7 +180,7 @@ export default function CitizenDashboard() {
           marginBottom: 12,
           marginTop: 4,
         }}>
-          Features
+          {t("citizenDashboard.title")}
         </Text>
 
         {/* 3x3 Feature grid */}
@@ -173,7 +192,7 @@ export default function CitizenDashboard() {
           {CITIZEN_FEATURES.map((feature, index) => (
             <TouchableOpacity
               key={index}
-              onPress={() => handleFeaturePress(feature.route)}
+              onPress={() => handleFeaturePress(feature)}
               style={{
                 width: CARD_SIZE,
                 backgroundColor: feature.color,

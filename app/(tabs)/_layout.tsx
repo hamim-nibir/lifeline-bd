@@ -6,7 +6,7 @@ type TabIconProps = { focused: boolean; icon: string; label: string };
 
 function TabIcon({ focused, icon, label }: TabIconProps) {
   return (
-    <View style={{ alignItems: "center", justifyContent: "center", marginTop: 8, width: 70, }}>
+    <View style={{ alignItems: "center", justifyContent: "center", marginTop: 8, width: 56 }}>
       <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.4 }}>{icon}</Text>
       <Text style={{
         fontSize: 10,
@@ -20,7 +20,15 @@ function TabIcon({ focused, icon, label }: TabIconProps) {
   );
 }
 
+function ReportTabIcon({ focused }: { focused: boolean }) {
+  const accountType = useAuthStore((s) => s.accountType);
+  const { t } = useTranslation();
+  const label = accountType === "operator" ? t("tabs.review") : t("tabs.report");
+  return <TabIcon focused={focused} icon="📋" label={label} />;
+}
+
 export default function TabLayout() {
+  const { t } = useTranslation();
   return (
     <View style={{ flex: 1 }}>
       <WelcomeBanner />
@@ -67,6 +75,14 @@ export default function TabLayout() {
           options={{
             tabBarIcon: ({ focused }) => (
               <TabIcon focused={focused} icon="🔔" label="Alerts" />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="community"
+          options={{
+            tabBarIcon: ({ focused }) => (
+              <TabIcon focused={focused} icon="👥" label="Community" />
             ),
           }}
         />

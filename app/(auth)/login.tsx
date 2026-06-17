@@ -15,14 +15,13 @@ import { AccountType } from "../../types";
 import { useRouter } from "expo-router";
 import Logo from "../../components/ui/logo";
 import { Ionicons } from "@expo/vector-icons";
+import { useTranslation } from "../../hooks/useTranslation";
+import LanguageSwitcher from "../../components/LanguageSwitcher";
 
-const ACCOUNT_TYPES: { value: AccountType; label: string; desc: string }[] = [
-  { value: "operator", label: "Operator", desc: "Manage and oversee operations" },
-  { value: "volunteer", label: "Volunteer", desc: "Help and support donors" },
-  { value: "citizen", label: "Citizen", desc: "Donate or request blood" },
-];
+const ACCOUNT_TYPE_VALUES: AccountType[] = ["operator", "volunteer", "citizen"];
 
 export default function AuthScreen() {
+  const { t } = useTranslation();
   const [isLogin, setIsLogin] = useState(true);
   const [name, setName] = useState("");
   const [nickname, setNickname] = useState("");
@@ -51,12 +50,12 @@ export default function AuthScreen() {
 
   const isFormValid = !isLogin
     ? (
-        name.trim().length > 0 &&
-        nickname.trim().length > 0 &&
-        isValidEmail(email) &&
-        password.length >= 6 &&
-        password === confirmPassword
-      )
+      name.trim().length > 0 &&
+      nickname.trim().length > 0 &&
+      isValidEmail(email) &&
+      password.length >= 6 &&
+      password === confirmPassword
+    )
     : (email.length > 0 && password.length > 0);
 
   const switchTab = (toLogin: boolean) => {
@@ -76,11 +75,11 @@ export default function AuthScreen() {
 
   const handleSubmit = async () => {
     setError("");
-    if (!email || !password) { setError("Please fill in all fields."); return; }
-    if (!isLogin && !name) { setError("Please enter your full name."); return; }
-    if (!isLogin && !nickname) { setError("Please enter a nickname."); return; }
-    if (!isLogin && password !== confirmPassword) { setError("Passwords do not match."); return; }
-    if (password.length < 6) { setError("Password must be at least 6 characters."); return; }
+    if (!email || !password) { setError(t("auth.fillAll")); return; }
+    if (!isLogin && !name) { setError(t("auth.enterName")); return; }
+    if (!isLogin && !nickname) { setError(t("auth.enterNickname")); return; }
+    if (!isLogin && password !== confirmPassword) { setError(t("auth.passwordMismatch")); return; }
+    if (password.length < 6) { setError(t("auth.passwordMin")); return; }
 
     setLoading(true);
     try {
@@ -96,11 +95,11 @@ export default function AuthScreen() {
         code === "auth/wrong-password" ||
         code === "auth/invalid-credential"
       ) {
-        setError("Invalid email or password.");
+        setError(t("auth.loginFailed"));
       } else if (code === "auth/email-already-in-use") {
-        setError("This email is already registered.");
+        setError(t("auth.registerFailed"));
       } else if (code === "auth/invalid-email") {
-        setError("Please enter a valid email address.");
+        setError(t("auth.invalidEmail"));
       } else {
         setError("Something went wrong. Please try again.");
       }
@@ -120,7 +119,11 @@ export default function AuthScreen() {
         keyboardShouldPersistTaps="handled"
       >
         {/* ── Header ── */}
-        <View className="bg-orange-600 px-6 pt-14 pb-10">
+        <View className=" px-6 pt-14 pb-10"
+          style={{
+            backgroundColor: "#c4451a",
+          }}>
+
           <View className="flex-row justify-between items-center mb-4">
             <Logo onPress={() => router.push("/")} />
             <TouchableOpacity
@@ -152,7 +155,7 @@ export default function AuthScreen() {
             className={`flex-1 py-3 rounded-xl items-center ${isLogin ? "bg-white shadow-sm" : ""}`}
           >
             <Text className={`font-semibold text-sm ${isLogin ? "text-orange-600" : "text-gray-400"}`}>
-              Sign In
+              {t("auth.signIn")}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -160,13 +163,16 @@ export default function AuthScreen() {
             className={`flex-1 py-3 rounded-xl items-center ${!isLogin ? "bg-white shadow-sm" : ""}`}
           >
             <Text className={`font-semibold text-sm ${!isLogin ? "text-orange-600" : "text-gray-400"}`}>
-              Register
+              {t("auth.register")}
             </Text>
           </TouchableOpacity>
         </View>
 
         {/* ── Form ── */}
         <Animated.View className="mx-6 mt-6" style={{ opacity: fadeAnim }}>
+          <View style={{ alignSelf: "flex-start", marginBottom: 8 }}>
+            <LanguageSwitcher compact />
+          </View>
 
           {/* Register-only fields */}
           {!isLogin && (
@@ -209,9 +215,8 @@ export default function AuthScreen() {
               Email Address
             </Text>
             <TextInput
-              className={`bg-gray-50 border rounded-xl px-4 py-3.5 text-gray-800 ${
-                emailInvalid ? "border-red-400" : "border-gray-200"
-              }`}
+              className={`bg-gray-50 border rounded-xl px-4 py-3.5 text-gray-800 ${emailInvalid ? "border-red-400" : "border-gray-200"
+                }`}
               placeholder="Enter your email"
               placeholderTextColor="#9ca3af"
               value={email}
@@ -233,11 +238,10 @@ export default function AuthScreen() {
               Password
             </Text>
             <View
-              className={`flex-row bg-gray-50 border rounded-xl items-center pr-4 ${
-                password.length > 0 && password.length < 6
+              className={`flex-row bg-gray-50 border rounded-xl items-center pr-4 ${password.length > 0 && password.length < 6
                   ? "border-red-400"
                   : "border-gray-200"
-              }`}
+                }`}
             >
               <TextInput
                 className="flex-1 px-4 py-3.5 text-gray-800"
@@ -271,13 +275,12 @@ export default function AuthScreen() {
                   Confirm Password
                 </Text>
                 <View
-                  className={`flex-row bg-gray-50 border rounded-xl items-center pr-4 ${
-                    passwordsMismatch
+                  className={`flex-row bg-gray-50 border rounded-xl items-center pr-4 ${passwordsMismatch
                       ? "border-red-400"
                       : passwordsMatch
-                      ? "border-green-400"
-                      : "border-gray-200"
-                  }`}
+                        ? "border-green-400"
+                        : "border-gray-200"
+                    }`}
                 >
                   <TextInput
                     className="flex-1 px-4 py-3.5 text-gray-800"
@@ -312,39 +315,36 @@ export default function AuthScreen() {
                 <Text className="text-gray-600 text-sm font-medium mb-3">
                   Account Type
                 </Text>
-                {ACCOUNT_TYPES.map((type) => (
+                {ACCOUNT_TYPE_VALUES.map((value) => (
                   <TouchableOpacity
-                    key={type.value}
-                    onPress={() => setAccountType(type.value)}
-                    className={`flex-row items-center p-4 rounded-xl mb-2 border ${
-                      accountType === type.value
+                    key={value}
+                    onPress={() => setAccountType(value)}
+                    className={`flex-row items-center p-4 rounded-xl mb-2 border ${accountType === value
                         ? "bg-orange-50 border-orange-300"
                         : "bg-gray-50 border-gray-200"
-                    }`}
+                      }`}
                   >
                     <View
-                      className={`w-5 h-5 rounded-full border-2 mr-3 items-center justify-center ${
-                        accountType === type.value
+                      className={`w-5 h-5 rounded-full border-2 mr-3 items-center justify-center ${accountType === value
                           ? "border-orange-600"
                           : "border-gray-300"
-                      }`}
+                        }`}
                     >
-                      {accountType === type.value && (
+                      {accountType === value && (
                         <View className="w-2.5 h-2.5 rounded-full bg-orange-600" />
                       )}
                     </View>
                     <View className="flex-1">
                       <Text
-                        className={`font-semibold text-sm ${
-                          accountType === type.value
+                        className={`font-semibold text-sm ${accountType === value
                             ? "text-orange-600"
                             : "text-gray-700"
-                        }`}
+                          }`}
                       >
-                        {type.label}
+                        {t(`auth.types.${value}.label`)}
                       </Text>
                       <Text className="text-gray-400 text-xs mt-0.5">
-                        {type.desc}
+                        {t(`auth.types.${value}.desc`)}
                       </Text>
                     </View>
                   </TouchableOpacity>
@@ -364,9 +364,8 @@ export default function AuthScreen() {
           <TouchableOpacity
             onPress={handleSubmit}
             disabled={loading || !isFormValid}
-            className={`rounded-xl py-4 items-center mt-2 ${
-              isFormValid ? "bg-orange-600" : "bg-orange-300"
-            }`}
+            className={`rounded-xl py-4 items-center mt-2 ${isFormValid ? "bg-orange-600" : "bg-orange-300"
+              }`}
           >
             {loading ? (
               <ActivityIndicator color="#ffffff" />
