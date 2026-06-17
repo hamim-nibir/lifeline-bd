@@ -1,69 +1,68 @@
 import { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  FlatList,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
   View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  RefreshControl,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { db } from "../../services/firebase";
 import {
   collection,
-  onSnapshot,
-  orderBy,
   query,
-  where,
+  orderBy,
+  onSnapshot,
+  updateDoc,
+  doc,
 } from "firebase/firestore";
-import { db } from "../../services/firebase";
-import { markNotificationRead } from "../../services/notifications";
-import { useAuthStore } from "../../store/authStore";
 
-type InboxNotification = {
+type AppNotification = {
   id: string;
+  title: string;
+  body: string;
   type?: string;
-  title?: string;
-  body?: string;
+  severity?: "high" | "normal";
   read?: boolean;
-  createdAt?: { toDate?: () => Date };
-  ambulanceRequestId?: string;
+  createdAt?: any;
 };
 
 export default function NotificationsScreen() {
-  const router = useRouter();
-  const { user } = useAuthStore();
-  const [items, setItems] = useState<InboxNotification[]>([]);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    if (!user?.uid) {
-      setItems([]);
-      setLoading(false);
-      return;
-    }
-    const q = query(
-      collection(db, "notifications"),
-      where("reportedByUid", "==", user.uid),
-      orderBy("createdAt", "desc")
-    );
+    const q = query(collection(db, "notifications"), orderBy("createdAt", "desc"));
     const unsub = onSnapshot(
       q,
       (snap) => {
-        setItems(
-          snap.docs.map((d) => ({
-            id: d.id,
-            ...(d.data() as Omit<InboxNotification, "id">),
-          }))
-        );
+        const list: AppNotification[] = snap.docs.map((d) => ({
+          id: d.id,
+          ...(d.data() as Omit<AppNotification, "id">),
+        }));
+        setNotifications(list);
         setLoading(false);
+        setRefreshing(false);
       },
-      () => setLoading(false)
+      () => {
+        setLoading(false);
+        setRefreshing(false);
+      }
     );
     return () => unsub();
-  }, [user?.uid]);
+  }, []);
 
-  const formatTime = (timestamp: InboxNotification["createdAt"]) => {
-    if (!timestamp?.toDate) return "";
+  const markRead = async (id: string) => {
+    try {
+      await updateDoc(doc(db, "notifications", id), { read: true });
+    } catch (err) {
+      console.error("Failed to mark notification as read:", err);
+    }
+  };
+
+  const formatTime = (timestamp: any) => {
+    if (!timestamp?.toDate) return "Just now";
     return timestamp.toDate().toLocaleString("en-BD", {
       day: "2-digit",
       month: "short",
@@ -72,80 +71,117 @@ export default function NotificationsScreen() {
     });
   };
 
-  const onOpen = async (n: InboxNotification) => {
-    if (n.type === "ambulanceUpdate" && n.ambulanceRequestId) {
-      try {
-        if (!n.read) await markNotificationRead(n.id);
-      } catch {
-        /* non-fatal */
-      }
-      router.push({
-        pathname: "/(feat)/ambulance-tracking",
-        params: { requestId: n.ambulanceRequestId },
-      });
-      return;
-    }
-    if (!n.read) {
-      try {
-        await markNotificationRead(n.id);
-      } catch {
-        /* rules may block for some legacy doc shapes */
-      }
-    }
-  };
-
-  if (!user) {
-    return (
-      <View style={styles.center}>
-        <Text style={styles.muted}>Sign in to see your notifications.</Text>
-      </View>
-    );
-  }
-
-  if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#7c3aed" />
-      </View>
-    );
-  }
+  const unreadCount = notifications.filter((n) => !n.read).length;
 
   return (
-    <View style={styles.screen}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Notifications</Text>
-        <Text style={styles.headerSub}>
-          Tap an ambulance update to open live GPS tracking.
+    <View style={{ flex: 1, backgroundColor: "#f9fafb" }}>
+      <View
+        style={{
+          backgroundColor: "#f97316",
+          paddingTop: 56,
+          paddingBottom: 20,
+          paddingHorizontal: 20,
+        }}
+      >
+        <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 13, fontWeight: "500" }}>
+          Real-time alerts and updates
         </Text>
-      </View>
-      <FlatList
-        data={items}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={items.length === 0 ? styles.emptyList : styles.list}
-        ListEmptyComponent={
-          <Text style={styles.muted}>No notifications yet.</Text>
-        }
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={[styles.card, !item.read && styles.cardUnread]}
-            onPress={() => onOpen(item)}
-            activeOpacity={0.75}
-          >
-            <View style={styles.cardTop}>
-              <Text style={styles.title} numberOfLines={2}>
-                {item.title || "Update"}
-              </Text>
-              {!item.read ? <View style={styles.dot} /> : null}
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+          <Text style={{ color: "#fff", fontSize: 24, fontWeight: "700", marginTop: 2 }}>
+            Notifications
+          </Text>
+          {unreadCount > 0 && (
+            <View
+              style={{
+                backgroundColor: "#dc2626",
+                borderRadius: 12,
+                paddingHorizontal: 10,
+                paddingVertical: 4,
+              }}
+            >
+              <Text style={{ color: "#fff", fontWeight: "700", fontSize: 12 }}>{unreadCount}</Text>
             </View>
-            {item.body ? (
-              <Text style={styles.body} numberOfLines={3}>
-                {item.body}
+          )}
+        </View>
+      </View>
+
+      {loading ? (
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+          <ActivityIndicator size="large" color="#f97316" />
+          <Text style={{ color: "#9ca3af", marginTop: 10 }}>Loading notifications...</Text>
+        </View>
+      ) : (
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => setRefreshing(true)}
+              colors={["#f97316"]}
+            />
+          }
+        >
+          {notifications.length === 0 ? (
+            <View
+              style={{
+                backgroundColor: "#fff",
+                borderRadius: 16,
+                padding: 32,
+                borderWidth: 1,
+                borderColor: "#f3f4f6",
+                alignItems: "center",
+              }}
+            >
+              <Text style={{ fontSize: 34, marginBottom: 10 }}>🔕</Text>
+              <Text style={{ color: "#374151", fontWeight: "700", fontSize: 15 }}>No alerts yet</Text>
+              <Text style={{ color: "#9ca3af", fontSize: 12, marginTop: 4 }}>
+                You will receive real-time updates here
               </Text>
-            ) : null}
-            <Text style={styles.time}>{formatTime(item.createdAt)}</Text>
-          </TouchableOpacity>
-        )}
-      />
+            </View>
+          ) : (
+            notifications.map((item) => (
+              <View
+                key={item.id}
+                style={{
+                  backgroundColor: item.read ? "#fff" : "#fff7ed",
+                  borderRadius: 14,
+                  borderWidth: 1,
+                  borderColor: item.read ? "#f3f4f6" : "#fed7aa",
+                  padding: 14,
+                  marginBottom: 10,
+                }}
+              >
+                <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
+                  <Text style={{ color: "#1f2937", fontWeight: "700", fontSize: 14, flex: 1 }}>
+                    {item.title || "Notification"}
+                  </Text>
+                  {!item.read && <Text style={{ color: "#ea580c", fontWeight: "700", fontSize: 11 }}>NEW</Text>}
+                </View>
+                <Text style={{ color: "#4b5563", fontSize: 12, lineHeight: 18 }}>{item.body || "Update received"}</Text>
+
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 10 }}>
+                  <Text style={{ color: "#9ca3af", fontSize: 11 }}>{formatTime(item.createdAt)}</Text>
+                  {!item.read && (
+                    <TouchableOpacity
+                      onPress={() => markRead(item.id)}
+                      style={{
+                        backgroundColor: "#f3f4f6",
+                        borderRadius: 8,
+                        paddingHorizontal: 10,
+                        paddingVertical: 6,
+                      }}
+                    >
+                      <Text style={{ color: "#374151", fontSize: 11, fontWeight: "700" }}>Mark Read</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+            ))
+          )}
+        </ScrollView>
+      )}
     </View>
   );
 }
